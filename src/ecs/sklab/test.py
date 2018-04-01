@@ -4,10 +4,9 @@ from sklearn.preprocessing import StandardScaler,Normalizer,MinMaxScaler
 
 
 
-N = 3
+N = 4
 
 X_train,Y_train,X_val,Y_val = load_xy(prefix='../data/',argumentation = True,N=N)
-
 
 
 from sklearn.linear_model import Lasso
@@ -20,13 +19,20 @@ def sample_X(X,i):
 def sample_Y(Y,i):
     return Y[:,i]
 
+
+
+
 import numpy as np
 
-
-X_train,X_norm = normalize(X_train,axis=0,return_norm=True)
+# X_train,X_norm = normalize(X_train,axis=0,return_norm=True,norm='l1')
 # Y_train,Y_norm = normalize(Y_train,axis=0,return_norm=True)
 
-X_val/=X_norm
+ss = MinMaxScaler()
+X_train = ss.fit_transform(X_train)
+X_val = ss.transform(X_val)
+
+
+# X_val/=X_norm
 # Y_val/=Y_norm
 
 def score(Y,Y_):
@@ -46,16 +52,14 @@ def score(Y,Y_):
     return score
 
 
-from sklearn.linear_model import Lasso
-clf = Lasso(fit_intercept=False,alpha=0.9)
-# clf = LinearRegression(fit_intercept=False)
+from sklearn.linear_model import Lasso,Ridge
+# clf = Lasso(fit_intercept=False)
+clf = Ridge(fit_intercept=False)
 
 
 for i in range(Y_train.shape[1]):
     clf.fit(sample_X(X_train,i),sample_Y(Y_train,i))
-    # print(clf.score(sample_X(X_val,i),sample_Y(Y_val,i)))
-    p = clf.predict(sample_X(X_val,i))
-    score(p,sample_Y(Y_val,i))
+    print(clf.score(sample_X(X_val,i),sample_Y(Y_val,i)))
     # clf.fit(np.log(sample_X(X_train,i)+1),sample_Y(Y_train,i))
     # print(clf.score(np.log(sample_X(X_val,i)+1),sample_Y(Y_val,i)))
 

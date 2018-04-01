@@ -116,3 +116,6 @@ def load_xy(prefix='../data/',argumentation = True,N=1):
     return X_train,Y_train,X_val,Y_val    
     
 
+def load_xy_with_preprocessing(prefix='../data/',argumentation = True,N=1):
+    X_train,Y_train,X_val,Y_val = load_xy(prefix=prefix,argumentation=argumentation,N=N)
+    
