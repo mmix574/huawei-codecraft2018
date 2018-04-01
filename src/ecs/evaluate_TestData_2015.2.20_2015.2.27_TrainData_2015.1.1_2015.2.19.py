@@ -1,0 +1,274 @@
+# coding=utf-8
+import sys
+import os
+from datetime import datetime
+import math
+import re
+
+# -----------------------
+def mean(A):
+    assert(type(A)==list)
+    length = len(A)
+    _sum = 0
+    for i in range(len(A)):
+        _sum+=A[i]
+    return _sum/float(length)
+def squrt(A):
+    assert(type(A)==list)
+    return [x **2 for x in A]
+def minus(A,B):
+    assert(type(A)==list and type(B)==list and len(A)==len(B))
+    return [A[i] - B[i] for i in range(len(A))]
+def plus(A,B):
+    assert(type(A)==list and type(B)==list and len(A)==len(B))
+    return [A[i] + B[i] for i in range(len(A))]
+def root(a):
+    assert(a>=0)
+    return (math.pow(a,0.5))
+
+def matrix_sum(A,axis=0):
+    assert(axis==0)
+    assert(type(A)==list and len(A) >0 and type(A[0])==list)
+    s = [0 for _ in range(len(A[0]))]
+    for i in range(len(A)):
+        for j in range(len(A[0])):
+            s[j] += A[i][j]
+    return s
+# -----------------------
+
+def read_lines(file_path):
+    if os.path.exists(file_path):
+        array = []
+        with open(file_path, 'r') as lines:
+            for line in lines:
+                array.append(line)
+        return array
+    else:
+        print 'file not exist: ' + file_path
+        return None
+
+def parse_input_lines(input_lines):
+    input_lines = [x.strip() for x in input_lines]
+
+    machine_config = {'cpu':None,'mem':None,'disk':None}
+    flavors_number = 0
+    flavors = {}
+    optimized = 'CPU'
+    predict_times = [] 
+
+    flavors_unique = []
+
+    sf = 1
+    for line in input_lines:
+        if line == '':
+            sf += 1
+            continue
+
+        if sf == 1:
+            machine_config['cpu'] = int(line.split(' ')[0])
+            machine_config['mem'] = int(line.split(' ')[1]) * 1024
+            machine_config['disk'] = int(line.split(' ')[2])
+
+        elif sf == 2:
+            if not flavors_number:
+                flavors_number = int(line)
+                continue                
+            f,core,mem = line.split(' ')
+            f = int(f[f.find('r')+1:])
+            core = int(core)
+            mem = int(mem)
+            flavors[f]=(core,mem)
+            flavors_unique.append(f)
+
+        elif sf == 3:
+            optimized = line.strip()
+
+        elif sf == 4:
+            predict_times.append(line.strip())
+
+    predict_start_time = datetime.strptime(predict_times[0], "%Y-%m-%d %H:%M:%S")
+    predict_end_time = datetime.strptime(predict_times[1], "%Y-%m-%d %H:%M:%S")
+
+    assert(machine_config['cpu']!=None) #passed
+    assert(flavors_number!=0) #passed
+    assert(len(flavors)!=0) #passed
+    assert(len(flavors_unique)!=0) #passed
+
+    return machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time
+
+def parse_ecs_lines(ecs_lines):
+    ecs_logs = []
+    if(len(ecs_lines)==0):
+        return ecs_logs,None,None
+    for line in ecs_lines:
+        _uuid,f,t = line.split('\t')
+        f = int(f[f.find('r')+1:])
+        t = datetime.strptime(t.strip(), "%Y-%m-%d %H:%M:%S")
+        ecs_logs.append((f,t))
+
+    training_start_time = ecs_logs[0][1]
+    training_end_time = ecs_logs[len(ecs_logs)-1][1]
+
+    return ecs_logs,training_start_time,training_end_time
+
+
+
+def parse(inputFile,resultFilePath,testInputFile):
+    input_lines = read_lines(inputFile)
+    predict_array = read_lines(resultFilePath)
+    test_array = read_lines(testInputFile)
+
+    machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
+    ecs_logs,training_start_time,training_end_time = parse_ecs_lines(test_array)
+    # parse actual 
+
+    actual = {}.fromkeys(flavors_unique)
+    for f in flavors:
+        actual[f] = 0
+    for f,t in ecs_logs:
+        # skip sonme flavors which is not given in the inputFile 
+        if f in flavors_unique:
+            actual[f] += 1
+    # print(actual)
+
+    # parse predict result
+    predict_virtual_machine_count = int(predict_array[0])
+    predict = {}
+    predict.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+
+    for i in range(1,predict_array.index('\n')):
+        raw = predict_array[i].split(' ')
+        f = int(raw[0][raw[0].find('r')+1:])
+        count = int(raw[1])
+        predict[f] = count
+    # print(predict)
+
+
+    # parse backpack
+    predict_entity_machine_count = int(predict_array[predict_array.index('\n')+1])
+    backpack_list = []
+    for i in range(predict_array.index('\n')+2,len(predict_array)):
+        match = match = re.findall(r'r(\d) (\d)',predict_array[i])
+        em = {}.fromkeys(flavors_unique)
+        for f in flavors_unique:
+            em[f] = 0
+        for k,v in match:
+            em[int(k)] = int(v)
+        backpack_list.append(em)
+    # print(backpack_list)
+
+    return (predict,actual,flavors_unique),(machine_config,optimized,flavors_unique,flavors,backpack_list)
+
+def _partial_score_predict(predict,actual):
+    y_ = predict.values()
+    y = actual.values()
+    # print('predict',y_)
+    # print('actual ',y)
+    numerator = root(mean(squrt(minus(y,y_))))
+    # print(numerator/denominator,1-(numerator/denominator))
+    denominator = root(mean(squrt(y)))+root(mean(squrt(y_)))
+    return 1-(numerator/denominator)
+
+def predict_summary(predict_result):
+    print '\n'+'-'*20 +'predict summary below' +'-'*20
+    predict,actual,flavors_unique = [p[0] for p in predict_result],[p[1] for p in predict_result],[p[2] for p in predict_result]
+    flavors_unique = flavors_unique[0]
+    # comnpute each score of predictions
+    scores = [_partial_score_predict(predict[i],actual[i]) for i in range(len(predict))]
+
+    print 'diff:'
+    print(flavors_unique)
+    print '(PS:positive if predict is more than actual)'
+    print ''
+    diff = []
+    diff_sum = [0 for x in flavors_unique]
+    L1_sum = [0 for x in flavors_unique] 
+    L2_sum = [0 for x in flavors_unique]
+    # compute loss for flavor unique
+    # bear with me 
+    for i in range(len(predict)):
+        p = predict[i].values()
+        a = actual[i].values()
+        _ = minus(p,a)
+        diff.append(_)
+
+        for j in range(len(flavors_unique)):
+            L1_sum[j] += abs(_[j])
+            L2_sum[j] += _[j]**2
+            diff_sum[j] += _[j]
+
+    for d in diff:
+        print(d)
+
+    diff_mean = [x/float(len(diff_sum)) for x in diff_sum]
+    diff_var = [minus(diff[i],diff_mean) for i in range(len(diff))]
+    diff_var = [squrt(row) for row in diff_var]
+    diff_var = matrix_sum(diff_var)
+    diff_var = [x/float(len(diff)) for x in diff_var]
+    print(diff_var)
+    print '\ndiff mean'
+    print ['%.2f' %(x/float(len(flavors_unique))) for x in diff_mean]
+    print 'diff var'
+    print ['%.2f' %(x/float(len(flavors_unique))) for x in diff_var]
+    print '\n-----'
+    print('L1 loss_sum:')
+    print(L1_sum)
+    print '\n-----'
+    print('L2 loss_sum:(important)')
+    print(L2_sum)
+    print('L2_sum_mean(important)')
+    print(['%.2f' %(x/float(len(flavors_unique))) for x in L2_sum])
+    print '\n-----'
+    print(scores)
+    print('finalscore_max-->',max(scores))
+    print('finalscore-->',mean(scores))
+    return scores
+
+def _get_em_weights_of_cpu_and_mem(em,flavors):
+    cpu = 0
+    mem = 0
+    for k,v in em.items():
+        cpu += flavors[k][0]*v
+        mem += flavors[k][1]*v
+    return cpu,mem
+
+def backpack_summary(backpack_result):
+    print '\n'+'-'*20 +'backpack summary below' +'-'*20
+    scores = []
+    for each in backpack_result:
+        machine_config,optimized,flavors_unique,flavors,backpack_list = each
+        total_cpu = 0
+        total_mem = 0
+        predict_entity_machine_count = len(backpack_list)
+        for em in backpack_list:
+            cpu,mem = _get_em_weights_of_cpu_and_mem(em,flavors)
+            total_cpu += cpu
+            total_mem += mem
+        assert(optimized=='CPU' or optimized=='MEM')
+        if optimized=='CPU':
+            score = total_cpu/float(machine_config['cpu']*predict_entity_machine_count)
+        elif optimized=='MEM':
+            score = total_mem/float(machine_config['mem']*predict_entity_machine_count)
+        scores.append(score)
+        print score
+    print('backpackscore_max-->',max(scores))
+    print('backpackscore-->',sum(scores)/float(len(scores)))
+    return scores
+
+if __name__ == '__main__':
+    # python27_path = "C:\Python27\python.exe"
+    os.system('C:/python27/python.exe ecs.py TrainData_2015.1.1_2015.2.19.txt input_5flavors_cpu_7days.txt output.txt')
+    # get parsed  
+    p,b = parse('input_15flavors_cpu_7days.txt','output.txt','TestData_2015.2.20_2015.2.27.txt')
+
+    s1 = predict_summary([p])
+    s2 = backpack_summary([b])
+    # done
+
+    print '\n'+'-'*20 +'final combime scores below' +'-'*20
+    combine_scores = [ s1[i]*s2[i] for i in range(len(s1))]
+    print combine_scores,'\n'
+    print('combine_scores_max-->',max(combine_scores))
+    print('combine_scores-->',mean(combine_scores))
