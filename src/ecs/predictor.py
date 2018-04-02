@@ -14,6 +14,8 @@ from utils import parse_ecs_lines, parse_input_lines
 from utils import corrcoef
 from utils import l2_loss,official_score
 
+
+
 def get_flavors_unique_mapping(flavors_unique):
     mapping_index = {}.fromkeys(flavors_unique)
     c = 0
@@ -97,6 +99,10 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return X_train,Y_train,X_test 
 
 
+def processing(X_train,Y_train,X_test):
+    return X_train,Y_train,X_test
+
+
 def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
@@ -108,8 +114,10 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     predict_days = (predict_end_time-predict_start_time).days
     
     # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False,argumentation=True)
-    
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=2,get_flatten=False,argumentation=True)
+    X_train,Y_train,X_test = processing(X_train,Y_train,X_test)
+
+
     # without argumentation
     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
     
@@ -144,14 +152,11 @@ def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False,scor
             yield dict(zip(paramaters.keys(),v))
 
     max_parameter = None
-    
     max_score = None
     min_loss = None
-
     for p in paramater_gen(paramaters):
         clf = estimator(**p)
         clf.fit(Xs,Ys)
-        
         score = clf.weighted_score(Xs,Ys,[1])
         loss = clf.weighted_loss(Xs,Ys,[1])
 
@@ -243,6 +248,7 @@ class Smoothing(BasePredictor):
                 multiply(X[i],math.pow(self.weight_decay,i)/float(sum_w)),
                 R)
         return R
+
 
 
 # build output lines
