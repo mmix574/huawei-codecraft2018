@@ -30,9 +30,21 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     assert(frequency[len(frequency)-1]=='d')
     assert((weekday_align==None and argumentation==False) or (weekday_align==None and argumentation==True) or (weekday_align!=None and argumentation==False))
 
+    if type(weekday_align) == int:
+        predict_start_time = predict_start_time - timedelta(days=(weekday_align-predict_start_time.weekday()+7)%7)
 
-    if weekday_align != None:
+    elif weekday_align != None:
         predict_start_time = predict_start_time - timedelta(days=(weekday_align.weekday()-predict_start_time.weekday()+7)%7)
+
+    if argumentation == True:
+        X_train,Y_train,X_test = [],[],[]
+        for i in range(7):
+            x,y,z = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=i,N=N,get_flatten=get_flatten,argumentation=False)
+            X_train.extend(x)
+            Y_train.extend(y)
+            X_test = z            
+        return X_train,Y_train,X_test
+
 
     span_origin = int(frequency[:-1])
     training_days = ((predict_start_time - training_start_time).days) +1 
@@ -94,8 +106,14 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
 
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
-
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=5,get_flatten=False)
+    
+    # with argumentation
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False,argumentation=True)
+    
+    # without argumentation
+    # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
+    
+    
     sm = Smoothing(weight_decay=0.4)
     sm.fit(X_train,Y_train)
     # print(sm.loss(X_train,Y_train))
@@ -139,7 +157,7 @@ def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False,scor
 
         if verbose:
             print(p,score,loss)
-            
+
         assert(scoring == "official" or scoring == "l2loss")
         if scoring == "official":
             if max_parameter==None or max_score<score:
@@ -245,7 +263,7 @@ def predict_vm(ecs_lines,input_lines):
     result.append('') # output '\n'
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
-    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=100)
+    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=1000)
     result.append('{}'.format(entity_machine_sum))
 
     # print(backpack_list)
