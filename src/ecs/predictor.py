@@ -114,13 +114,16 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     predict_days = (predict_end_time-predict_start_time).days
     
     # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=2,get_flatten=False,argumentation=True)
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False,argumentation=True)
     X_train,Y_train,X_test = processing(X_train,Y_train,X_test)
-
 
     # without argumentation
     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
-    
+
+    from load_data import load_data
+
+    A = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=3,get_flatten=False,argumentation=True)
+    # print(A)
     
     sm = Smoothing(weight_decay=0.4)
     sm.fit(X_train,Y_train)
