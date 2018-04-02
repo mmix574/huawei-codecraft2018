@@ -21,6 +21,7 @@ def score(Y,Y_):
     print(score)
     return score
 
+
 def load_data(prefix='../data/',argumentation = True):
     list_of_files_train = ['data_2015_1.txt','data_2015_2.txt','data_2015_3.txt','data_2015_4.txt','data_2015_5.txt']
     list_of_files_validation = ['data_2015_12.txt','data_2016_1.txt']
@@ -116,6 +117,11 @@ def load_xy(prefix='../data/',argumentation = True,N=1):
     return X_train,Y_train,X_val,Y_val    
     
 
+# todo
 def load_xy_with_preprocessing(prefix='../data/',argumentation = True,N=1):
     X_train,Y_train,X_val,Y_val = load_xy(prefix=prefix,argumentation=argumentation,N=N)
-    
+
+
+# load_xy_with_preprocessing(prefix='../data/',argumentation = True,N=2)
+
+

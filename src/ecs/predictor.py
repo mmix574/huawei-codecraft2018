@@ -76,6 +76,11 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return data,target
 
 
+# todo
+def resample_with_preprocessing():
+    pass
+
+
 def l2_loss(y,y_):
     if dim(y) == 2:
         return mean(sum(square(minus(y,y_)),axis=0))
