@@ -76,9 +76,9 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return data,target
 
 
-# todo
-def resample_with_preprocessing():
-    pass
+# # todo
+# def resample_with_preprocessing():
+#     pass
 
 
 def l2_loss(y,y_):
@@ -124,6 +124,12 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     sm = Smoothing(weight_decay=0.4)
     sm.fit(X,y)
 
+    from load_data import load_data
+    print(load_data(flavors_unique,frequency='7d',weekday_align=None,N=1,get_flatten=False))
+
+    grid_search(Smoothing,{"weight_decay":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]},[X],[y],[1],True)
+
+
     # from load_data import load_data
     # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
 
@@ -139,29 +145,31 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
 # estimator: regressor class
 # paramaters = {'w':[0.1,0.2]},paramaters to try
 def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False):
-    pass
-    # def paramater_gen(paramaters):
-    #     N = len(paramaters)
-    #     from itertools import product
-    #     value = list(product(*paramaters.values()))
-    #     for v in value:
-    #         yield dict(zip(paramaters.keys(),v))
 
-    # max_p = None
-    # max_score = None
-    # min_loss = None
-    # for p in paramater_gen(paramaters):
-    #     clf = estimator(**p)
-    #     clf.fit(sample,multi_fit=True,sample_weight=weights_of_samples)
-    #     score = clf.score()
-    #     loss = clf.total_loss()
-    #     if verbose:
-    #         print(p,score,loss)
-    #     if max_p==None or min_loss>loss:
-    #         max_p = p
-    #         max_score = score
-    #         min_loss = loss
-    # return max_p
+    
+    def paramater_gen(paramaters):
+        N = len(paramaters)
+        from itertools import product
+        value = list(product(*paramaters.values()))
+        for v in value:
+            yield dict(zip(paramaters.keys(),v))
+
+    max_p = None
+    max_score = None
+    min_loss = None
+    for p in paramater_gen(paramaters):
+        clf = estimator(**p)
+        clf.fit(Xs,Ys)
+        score = clf.score()
+        loss = clf.total_loss()
+        if verbose:
+            print(p,score,loss)
+        if max_p==None or min_loss>loss:
+            max_p = p
+            max_score = score
+            min_loss = loss
+
+    return estimator(**max_p)
 
 
 # fix @ 2018-03-28
