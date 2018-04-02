@@ -12,6 +12,7 @@ from linalg.vector import count_nonezero,arange
 
 from utils import parse_ecs_lines, parse_input_lines
 from utils import corrcoef
+from utils import l2_loss,official_score
 
 def get_flavors_unique_mapping(flavors_unique):
     mapping_index = {}.fromkeys(flavors_unique)
@@ -22,14 +23,16 @@ def get_flavors_unique_mapping(flavors_unique):
     return mapping_index
 
 
+# fix bug 2018-04-02
 # modify @2018-03-28
 # sample[len(sample)-1] is latest frequency slicing 
-def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=None,N=1,get_flatten=False):
+def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=None,N=1,get_flatten=False,argumentation=False):
     assert(frequency[len(frequency)-1]=='d')
+    assert((weekday_align==None and argumentation==False) or (weekday_align==None and argumentation==True) or (weekday_align!=None and argumentation==False))
+
 
     if weekday_align != None:
         predict_start_time = predict_start_time - timedelta(days=(weekday_align.weekday()-predict_start_time.weekday()+7)%7)
-
 
     span_origin = int(frequency[:-1])
     training_days = ((predict_start_time - training_start_time).days) +1 
@@ -60,45 +63,26 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
 
     sample = sample[::-1]
     
-    def XY_generate(sample,N=1,get_flatten=False):
-        data = []
-        target = []
+    def XY_generate(sample,N=1,get_flatten=False,return_test=False):
+        X_train = []
+        Y_train = []
         for i in range(N,len(sample)):
             X = [sample[i-N+k] for k in range(N)]
             if get_flatten:
                 X = flatten(X)
             y = sample[i]
-            data.append(X)
-            target.append(y)
-        return data,target
-
-    data,target = XY_generate(sample,N=N,get_flatten=get_flatten)
-    return data,target
-
-
-# # todo
-# def resample_with_preprocessing():
-#     pass
-
-
-def l2_loss(y,y_):
-    if dim(y) == 2:
-        return mean(sum(square(minus(y,y_)),axis=0))
-    else:
-        return sum(square(minus(y,y_)))
-
-def official_score(y,y_):
-    def _score_calc(y,y_):
-        numerator = sqrt(sum(square(minus(y,y_))))
-        denominator = sqrt(sum(square(y))) + sqrt(sum(square(y_)))
-        if denominator==0:
-            return 0
+            X_train.append(X)
+            Y_train.append(y)        
+        if return_test:
+            X_test = [sample[len(sample)-N+k] for k in range(N)]
+            if get_flatten:
+                X_test = flatten(X_test)
+            return X_train,Y_train,X_test
         else:
-            return 1-(numerator/denominator)
-    if dim(y) == 1:
-        return _score_calc(y,y_)
-    else:
-        return mean([_score_calc(y[i],y_[i]) for i in range(len(y))])
+            return X_train,Y_train
+
+    X_train,Y_train,X_test = XY_generate(sample,N=N,get_flatten=get_flatten,return_test=True)
+    return X_train,Y_train,X_test 
 
 
 def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -111,29 +95,18 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    # start coding here
-
-    # X,y = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=1,get_flatten=True)
-    # bp = BasePredictor()
-    # bp.fit(X,y)
-    # bp.predict(X)
-    # print(bp.loss(X,y))
-    # print(bp.score(X,y))
-
-    X,y = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=5,get_flatten=False)
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=5,get_flatten=False)
     sm = Smoothing(weight_decay=0.4)
-    sm.fit(X,y)
+    sm.fit(X_train,Y_train)
+    # print(sm.loss(X_train,Y_train))
+    # print(sm.score(X_train,Y_train))
 
-    from load_data import load_data
-    print(load_data(flavors_unique,frequency='7d',weekday_align=None,N=1,get_flatten=False))
-
-    grid_search(Smoothing,{"weight_decay":[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]},[X],[y],[1],True)
-
-
+    model = grid_search(Smoothing,{"weight_decay":arange(0.1,0.99,100)},[X_train],[Y_train],[1],verbose=False)
     # from load_data import load_data
     # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
 
-    result = sm.predict(X[-1])[0]
+    # result = sm.predict(X_test)[0]
+    result = model.predict(X_test)[0]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
@@ -144,9 +117,7 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
 # using grid search to tune hyper paramaters
 # estimator: regressor class
 # paramaters = {'w':[0.1,0.2]},paramaters to try
-def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False):
-
-    
+def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False,scoring="official"):
     def paramater_gen(paramaters):
         N = len(paramaters)
         from itertools import product
@@ -154,22 +125,33 @@ def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False):
         for v in value:
             yield dict(zip(paramaters.keys(),v))
 
-    max_p = None
+    max_parameter = None
+    
     max_score = None
     min_loss = None
+
     for p in paramater_gen(paramaters):
         clf = estimator(**p)
         clf.fit(Xs,Ys)
-        score = clf.score()
-        loss = clf.total_loss()
+        
+        score = clf.weighted_score(Xs,Ys,[1])
+        loss = clf.weighted_loss(Xs,Ys,[1])
+
         if verbose:
             print(p,score,loss)
-        if max_p==None or min_loss>loss:
-            max_p = p
-            max_score = score
-            min_loss = loss
-
-    return estimator(**max_p)
+            
+        assert(scoring == "official" or scoring == "l2loss")
+        if scoring == "official":
+            if max_parameter==None or max_score<score:
+                max_parameter = p
+                max_score = score
+                min_loss = loss
+        elif scoring == "l2loss":
+            if max_parameter==None or min_loss>loss:
+                max_parameter = p
+                max_score = score
+                min_loss = loss
+    return estimator(**max_parameter)
 
 
 # fix @ 2018-03-28
@@ -199,6 +181,18 @@ class BasePredictor:
         y_ = self.predict(X)
         return official_score(y,y_)
 
+    def weighted_loss(self,Xs,Ys,weights):
+        total_loss = 0
+        for i in range(len(Xs)):
+            total_loss+=self.loss(Xs[i],Ys[i])
+        return total_loss/float(len(Xs))
+
+    def weighted_score(self,Xs,Ys,weights):
+        total_score = 0
+        for i in range(len(Xs)):
+            total_score+=self.score(Xs[i],Ys[i])
+        return total_score/float(len(Xs))
+
 
 # add @2018-03-28
 class Smoothing(BasePredictor):
@@ -210,6 +204,7 @@ class Smoothing(BasePredictor):
         pass
 
     def weighted_fit(self,Xs,Ys,weights):
+        print('hello world')
         pass
 
     def predict(self,X):
@@ -230,9 +225,6 @@ class Smoothing(BasePredictor):
                 multiply(X[i],math.pow(self.weight_decay,i)/float(sum_w)),
                 R)
         return R
-
-
-
 
 
 # build output lines

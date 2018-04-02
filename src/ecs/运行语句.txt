@@ -6,7 +6,7 @@ C:/python27/python.exe ecs.py TrainData_2015.1.1_2015.2.19.txt input_15flavors_c
 tar -czvf my.tar.gz  src/
 
 Лђеп
-tar -czvf my.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py /src/ecs/upload/*.*
+tar -czvf my.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py
 
 src/ecs/paramater/*.*
 

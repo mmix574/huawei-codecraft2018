@@ -102,3 +102,29 @@ def corrcoef(A):
 # def arange(start,end,total_points):
 #     h = (end-start)/total_points
 #     return [start + i*h for i in range(total_points)]
+
+
+
+from linalg.common import (dim, dot, mean, multiply, reshape, shape, sqrt,
+                           square, zeros,plus,sum,minus)
+# 2018-04-02
+# vector and matrix supportted
+def l2_loss(y,y_):
+    if dim(y) == 2:
+        return mean(sum(square(minus(y,y_)),axis=0))
+    else:
+        return sum(square(minus(y,y_)))
+# 2018-04-02
+# vector and matrix supportted
+def official_score(y,y_):
+    def _score_calc(y,y_):
+        numerator = sqrt(sum(square(minus(y,y_))))
+        denominator = sqrt(sum(square(y))) + sqrt(sum(square(y_)))
+        if denominator==0:
+            return 0
+        else:
+            return 1-(numerator/float(denominator))
+    if dim(y) == 1:
+        return _score_calc(y,y_)
+    else:
+        return mean([_score_calc(y[i],y_[i]) for i in range(len(y))])
