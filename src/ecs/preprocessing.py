@@ -4,6 +4,18 @@ from linalg.common import dim,shape,zeros,multiply
 from linalg.common import mean,minus,square,shape,abs,sqrt
 from linalg.matrix import matrix_transpose,matrix_copy
 
+
+
+def stdev(X):
+    # X = matrix_copy(X)
+    X_T = matrix_transpose(X)
+    m = mean(X,axis=1)
+    R = []
+    for j in range(shape(X)[1]):
+        R.append(sqrt(mean(square(minus(X_T[j],m[j])))))
+    return R
+
+
 def normalize(X,norm='l2',axis=1,return_norm=False):
     assert(axis==0 or axis==1)
     X_T = matrix_transpose(X)

@@ -76,7 +76,22 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
         sample[ith][mapping_index[flavor]] += 1
 
     sample = sample[::-1]
-    
+
+    def processing_sample(sample):
+        from preprocessing import stdev
+        m = mean(sample,axis=1)
+        std = stdev(sample)
+        # sample_T = matrix_transpose(sample)
+        for i in range(shape(sample)[0]):
+            for j in range(shape(sample)[1]):
+                if abs(sample[i][j]-m[j]) > 3*std[j]:
+                    sample[i][j] = m[j]
+                    # sample[i][j] = (2/3)*sample[i][j] + (1/3)*m[j]
+                    # sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
+        return sample
+
+    sample = processing_sample(sample)
+
     def XY_generate(sample,N=1,get_flatten=False,return_test=False):
         X_train = []
         Y_train = []
@@ -99,9 +114,6 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return X_train,Y_train,X_test 
 
 
-def processing(X_train,Y_train,X_test):
-    return X_train,Y_train,X_test
-
 
 def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     # modify @ 2018-03-15 
@@ -115,7 +127,6 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     
     # with argumentation
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False,argumentation=True)
-    X_train,Y_train,X_test = processing(X_train,Y_train,X_test)
 
     # without argumentation
     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
@@ -129,6 +140,9 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     sm.fit(X_train,Y_train)
     # print(sm.loss(X_train,Y_train))
     # print(sm.score(X_train,Y_train))
+
+    lr = LR()
+    lr.fit(X_train,Y_train)
 
     model = grid_search(Smoothing,{"weight_decay":arange(0.1,0.99,100)},[X_train],[Y_train],[1],verbose=False)
     # from load_data import load_data
@@ -187,7 +201,8 @@ class BasePredictor:
         pass
 
     def fit(self,X,y):
-        pass
+        self.weighted_fit([X],[y],[1])
+
 
     def weighted_fit(self,Xs,Ys,weights):
         pass
@@ -206,13 +221,11 @@ class BasePredictor:
     def score(self,X,y):
         y_ = self.predict(X)
         return official_score(y,y_)
-
     def weighted_loss(self,Xs,Ys,weights):
         total_loss = 0
         for i in range(len(Xs)):
             total_loss+=self.loss(Xs[i],Ys[i])
         return total_loss/float(len(Xs))
-
     def weighted_score(self,Xs,Ys,weights):
         total_score = 0
         for i in range(len(Xs)):
@@ -230,7 +243,6 @@ class Smoothing(BasePredictor):
         pass
 
     def weighted_fit(self,Xs,Ys,weights):
-        print('hello world')
         pass
 
     def predict(self,X):
@@ -252,6 +264,19 @@ class Smoothing(BasePredictor):
                 R)
         return R
 
+class LR(BasePredictor):
+    def __init__(self):
+        BasePredictor.__init__(self)
+    
+    def fit(self,X,y):
+        pass
+
+    def weighted_fit(self,Xs,Ys,weights):
+        pass
+
+    def predict(self,X):
+        # assert(dim(X)==3)
+        return None
 
 
 # build output lines
