@@ -13,11 +13,15 @@ from datetime import datetime
 
 def load_data(flavors_unique,frequency='7d',weekday_align=None,N=1,get_flatten=False,argumentation=False):
     lines_list = [paramater.get_merge_1(),paramater.get_merge_2(),paramater.get_merge_3()]
-    R = []
+    X_train,Y_train = [],[]
     for lines in lines_list:
         ecs_logs,training_start_time,training_end_time = parse_ecs_lines(lines)
         d = training_end_time.date() + timedelta(days=1)
         predict_start_time = datetime.combine(d, datetime.min.time())
-        R.append(resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=frequency,weekday_align=weekday_align,N=N,get_flatten=get_flatten,argumentation=argumentation))
-    return R
+        X,y,_ = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=frequency,weekday_align=weekday_align,N=N,get_flatten=get_flatten,argumentation=argumentation)
+        
+        X_train.append(X)
+        Y_train.append(y)
+    
+    return X_train,Y_train
 

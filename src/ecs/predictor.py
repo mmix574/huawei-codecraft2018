@@ -125,16 +125,17 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
+    N = 4
+
     # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False,argumentation=True)
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=True)
 
     # without argumentation
     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
 
     from load_data import load_data
 
-    A = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=3,get_flatten=False,argumentation=True)
-    # print(A)
+    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
     sm = Smoothing(weight_decay=0.4)
     sm.fit(X_train,Y_train)
@@ -144,7 +145,12 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     lr = LR()
     lr.fit(X_train,Y_train)
 
-    model = grid_search(Smoothing,{"weight_decay":arange(0.1,0.99,100)},[X_train],[Y_train],[1],verbose=False)
+
+    print(shape([X_train].extend(X_train_old)))
+
+    exit()
+
+    model = grid_search(Smoothing,{"weight_decay":arange(0.1,0.99,100)},[X_train].extend(X_train_old),[Y_train].extend(Y_train_old),[0.4,0.1,0.2,0.3],verbose=False)
     # from load_data import load_data
     # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
 
@@ -174,8 +180,8 @@ def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False,scor
     for p in paramater_gen(paramaters):
         clf = estimator(**p)
         clf.fit(Xs,Ys)
-        score = clf.weighted_score(Xs,Ys,[1])
-        loss = clf.weighted_loss(Xs,Ys,[1])
+        score = clf.weighted_score(Xs,Ys,weights_of_samples)
+        loss = clf.weighted_loss(Xs,Ys,weights_of_samples)
 
         if verbose:
             print(p,score,loss)
@@ -233,14 +239,13 @@ class BasePredictor:
         return total_score/float(len(Xs))
 
 
+
 # add @2018-03-28
 class Smoothing(BasePredictor):
     def __init__(self,weight_decay=0.4):
         BasePredictor.__init__(self)
         self.weight_decay = weight_decay
 
-    def fit(self,X,y):
-        pass
 
     def weighted_fit(self,Xs,Ys,weights):
         pass
@@ -264,15 +269,18 @@ class Smoothing(BasePredictor):
                 R)
         return R
 
+
 class LR(BasePredictor):
     def __init__(self):
         BasePredictor.__init__(self)
     
     def fit(self,X,y):
+
         pass
 
     def weighted_fit(self,Xs,Ys,weights):
         pass
+
 
     def predict(self,X):
         # assert(dim(X)==3)
