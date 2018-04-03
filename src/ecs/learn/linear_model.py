@@ -19,7 +19,7 @@ class LinearRegression:
 
         X_T = matrix_transpose(X)
         # print matrix_matmul(X_T,X)
-
+        
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(matrix_matmul(X_T,X)),X_T),y)
     
     def _check(self,X,y):

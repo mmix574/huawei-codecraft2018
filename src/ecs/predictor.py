@@ -187,17 +187,13 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
 
     from load_data import load_data
-
     # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
-    sm = Smoothing(weight_decay=0.4)
-    sm.fit(X_train,Y_train)
-    # print(sm.loss(X_train,Y_train))
-    # print(sm.score(X_train,Y_train))
 
     lr = LR()
     lr.fit(X_train,Y_train)
+    
 
     # print(shape([X_train].extend(X_train_old)))
     samples_X = X_train_old
@@ -332,11 +328,19 @@ class LR(BasePredictor):
     
     def fit(self,X,y):
         from learn.linear_model import LinearRegression
-        clf = LinearRegression()
+        clf = LinearRegression(fit_intercept=False)
 
-
+        X = reshape(X,(shape(X)[0],-1))
+        
+        print(shape(X))
+        print(shape(y))
+        
         clf.fit(X,y)
 
+        # print(reshape(X,(-1,15)))
+        # print(shape(reshape(X,(-1,))))
+        # print(shape(X))
+        # print(shape(y))        
 
         self.clf = clf
 
@@ -346,8 +350,7 @@ class LR(BasePredictor):
 
     def predict(self,X):
         # assert(dim(X)==3)
-        return None
-
+        print(shape(X))
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
@@ -357,7 +360,7 @@ def predict_vm(ecs_lines,input_lines):
     machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines)
 
-    predict,virtual_machine_sum = predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    predict,virtual_machine_sum = predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))

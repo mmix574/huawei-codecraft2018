@@ -47,14 +47,17 @@ def reshape(A,dimension):
         return product
     assert(_volume(shape(A))%_volume(dimension)==0)
 
-    def flatten(A):
-        if dim(A)==1:
-            return A
-        s = shape(A)
-        R = []
-        for i in range(s[0]):
-            R.extend(flatten(A[i]))
-        return R
+
+    # print(dimension)
+    # if -1 in dimension:
+    #     index= 0 
+    #     for i in range(len(dimension)):
+    #         if dimension[i]==-1:
+    #             index = i
+    #             break
+    #     _volume(dimension)
+    #     # dimension[index] = _volume(shape(A))/_volume(dimension)
+
         
     # flatten reshape     
     def __reshape(A,dimension):
@@ -62,6 +65,15 @@ def reshape(A,dimension):
             return A
         else:
             dimension = list(dimension)
+            
+            if -1 in dimension:
+                index= 0 
+                for i in range(len(dimension)):
+                    if dimension[i]<0:
+                        index = i
+                        break
+                dimension[index] = _volume(shape(A))/_volume(dimension)
+
             B = flatten(A)
             R = []
             shape_A = shape(A)
@@ -335,5 +347,10 @@ def mean(A,axis=None):
 
 # add @ 2018-03-28
 def flatten(A):
-    assert(type(A)==list)
-    return reshape(A,-1)
+    if dim(A)==1:
+        return A
+    s = shape(A)
+    R = []
+    for i in range(s[0]):
+        R.extend(flatten(A[i]))
+    return R
