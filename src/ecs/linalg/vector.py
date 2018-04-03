@@ -11,6 +11,6 @@ def count_nonezero(A):
     return c
 
 def arange(a,b,count):
-    h = (b - a)/count
+    h = (b - a)/float(count)
     return [i*h+a for i in range(count)]
 

@@ -85,8 +85,8 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
         for i in range(shape(sample)[0]):
             for j in range(shape(sample)[1]):
                 if abs(sample[i][j]-m[j]) > 3*std[j]:
-                    sample[i][j] = m[j]
-                    # sample[i][j] = (2/3)*sample[i][j] + (1/3)*m[j]
+                    # sample[i][j] = m[j]
+                    sample[i][j] = (2/3)*sample[i][j] + (1/3)*m[j]
                     # sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
         return sample
 
@@ -113,8 +113,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     X_train,Y_train,X_test = XY_generate(sample,N=N,get_flatten=get_flatten,return_test=True)
     return X_train,Y_train,X_test 
 
-
-
+# 73.176
 def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
@@ -125,16 +124,18 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 4
+    N = 3
 
     # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=True)
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
+
 
     # without argumentation
     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
 
     from load_data import load_data
 
+    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
     sm = Smoothing(weight_decay=0.4)
@@ -145,12 +146,14 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     lr = LR()
     lr.fit(X_train,Y_train)
 
+    # print(shape([X_train].extend(X_train_old)))
+    samples_X = X_train_old
+    samples_Y = Y_train_old
 
-    print(shape([X_train].extend(X_train_old)))
+    samples_X.append(X_train)
+    samples_Y.append(Y_train)
 
-    exit()
-
-    model = grid_search(Smoothing,{"weight_decay":arange(0.1,0.99,100)},[X_train].extend(X_train_old),[Y_train].extend(Y_train_old),[0.4,0.1,0.2,0.3],verbose=False)
+    model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.25,0.25,0.25,0.25],verbose=False)
     # from load_data import load_data
     # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
 
@@ -162,6 +165,58 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
 
+
+
+def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    # modify @ 2018-03-15 
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
+
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
+    
+    N = 3
+
+    # with argumentation
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
+
+
+    # without argumentation
+    # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
+
+    from load_data import load_data
+
+    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
+    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
+    
+    sm = Smoothing(weight_decay=0.4)
+    sm.fit(X_train,Y_train)
+    # print(sm.loss(X_train,Y_train))
+    # print(sm.score(X_train,Y_train))
+
+    lr = LR()
+    lr.fit(X_train,Y_train)
+
+    # print(shape([X_train].extend(X_train_old)))
+    samples_X = X_train_old
+    samples_Y = Y_train_old
+
+    samples_X.append(X_train)
+    samples_Y.append(Y_train)
+
+    model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.25,0.25,0.25,0.25],verbose=False)
+    # from load_data import load_data
+    # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
+
+    # result = sm.predict(X_test)[0]
+    result = model.predict(X_test)[0]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+    return predict,virtual_machine_sum
 
 # using grid search to tune hyper paramaters
 # estimator: regressor class
@@ -273,10 +328,17 @@ class Smoothing(BasePredictor):
 class LR(BasePredictor):
     def __init__(self):
         BasePredictor.__init__(self)
+        self.clf = None
     
     def fit(self,X,y):
+        from learn.linear_model import LinearRegression
+        clf = LinearRegression()
 
-        pass
+
+        clf.fit(X,y)
+
+
+        self.clf = clf
 
     def weighted_fit(self,Xs,Ys,weights):
         pass

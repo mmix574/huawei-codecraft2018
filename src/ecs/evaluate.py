@@ -272,9 +272,9 @@ if __name__ == '__main__':
     if len(sys.argv)>=2:
         print(sys.argv)
     if sys.argv[1]=='train':
-        backtest_folder = 'local_data_2015_01_2015_05/slicing_50days_7days_strike3'
+        backtest_folder = 'local_data_2015_01_2015_05/slicing_50days_7days_strike7'
     elif sys.argv[1]=='test':
-        backtest_folder = 'local_data_2015_12_2016_01/slicing_50days_7days_strike3'
+        backtest_folder = 'local_data_2015_12_2016_01/slicing_50days_7days_strike1'
     else:
         print('command error')
         exit()       

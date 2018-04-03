@@ -110,16 +110,26 @@ from linalg.common import (dim, dot, mean, multiply, reshape, shape, sqrt,
 # 2018-04-02
 # vector and matrix supportted
 def l2_loss(y,y_):
-    if dim(y) == 2:
-        return mean(sum(square(minus(y,y_)),axis=0))
+    # if dim(y) == 2:
+    #     return mean(sqrt(mean(square(minus(y,y_)),axis=0)))
+    # else:
+    #     return sqrt(mean(square(minus(y,y_))))
+
+    def _score_calc(y,y_):
+        numerator = sqrt(mean(square(minus(y,y_))))
+        return numerator
+
+    if dim(y) == 1:
+        return _score_calc(y,y_)
     else:
-        return sum(square(minus(y,y_)))
+        return mean([_score_calc(y[i],y_[i]) for i in range(len(y))])
+
 # 2018-04-02
 # vector and matrix supportted
 def official_score(y,y_):
     def _score_calc(y,y_):
-        numerator = sqrt(sum(square(minus(y,y_))))
-        denominator = sqrt(sum(square(y))) + sqrt(sum(square(y_)))
+        numerator = sqrt(mean(square(minus(y,y_))))
+        denominator = sqrt(mean(square(y))) + sqrt(mean(square(y_)))
         if denominator==0:
             return 0
         else:
