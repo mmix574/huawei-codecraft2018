@@ -1,11 +1,11 @@
-ÔËĞĞ±¾µØ²âÊÔ
+è¿è¡Œæœ¬åœ°æµ‹è¯•
 C:/python27/python.exe ecs.py TrainData_2015.1.1_2015.2.19.txt input_5flavors_cpu_7days.txt output.txt
 C:/python27/python.exe ecs.py TrainData_2015.1.1_2015.2.19.txt input_15flavors_cpu_7days.txt output.txt
 
-ÔËĞĞ´ò°ü³ÌĞò
+è¿è¡Œæ‰“åŒ…ç¨‹åº
 tar -czvf my.tar.gz  src/
 
-»òÕß
+æˆ–è€…
 tar -czvf my.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py
 tar -czvf -day11_12.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py
 
@@ -16,7 +16,7 @@ new:
 tar -czvf day15_26.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py
 
 
-ÔËĞĞÅúÁ¿ÆÀ²â
+è¿è¡Œæ‰¹é‡è¯„æµ‹
 python evaluate.py train
 python evaluate.py test
 

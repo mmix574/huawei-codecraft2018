@@ -65,7 +65,6 @@ def reshape(A,dimension):
             return A
         else:
             dimension = list(dimension)
-            
             if -1 in dimension:
                 index= 0 
                 for i in range(len(dimension)):
@@ -73,8 +72,6 @@ def reshape(A,dimension):
                         index = i
                         break
                 dimension[index] = _volume(shape(A))/_volume(dimension)
-
-            B = flatten(A)
             R = []
             shape_A = shape(A)
             count = 1
@@ -82,6 +79,10 @@ def reshape(A,dimension):
                 count *= shape_A[i]
             for i in range(dimension[0]):
                 R.append(A[i*(count//dimension[0]):(i+1)*(count//dimension[0])])
+            # fix a bug
+            if len(dimension)>1:
+                for i in range(dimension[0]):
+                    R[i] = __reshape(R[i],dimension[1:])
             return R
     B = flatten(A)
     return __reshape(B,dimension)
@@ -354,3 +355,30 @@ def flatten(A):
     for i in range(s[0]):
         R.extend(flatten(A[i]))
     return R
+
+# add 2018-04-04
+def fancy(*argv):
+    A = argv[0]
+    assert(type(A)==list)
+    assert(dim(A)==len(argv)-1)
+
+    if dim(A)==1:
+        if type(argv[1])==int:
+            if argv[1]==-1:
+                return A
+            else:
+                return A[argv[1]]
+        elif type(argv[1])==tuple or type(argv[1])==list:
+            return [A[i] for i in range(argv[1][0],argv[1][1])]
+        else:
+            raise Exception            
+    else:
+        if type(argv[1])==int:
+            if argv[1]==-1:
+                return [fancy(A[i],*argv[2:]) for i in range(shape(A)[0])]
+            else:
+                return fancy(A[argv[1]],*argv[2:])
+        elif type(argv[1]==tuple or type(argv[1]==list)):
+            return [fancy(A[i],*argv[2:]) for i in range(argv[1][0],argv[1][1])]
+
+

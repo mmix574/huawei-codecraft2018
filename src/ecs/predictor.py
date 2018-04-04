@@ -87,7 +87,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
                 if abs(sample[i][j]-m[j]) > 3*std[j]:
                     # sample[i][j] = m[j]
                     # sample[i][j] = (4/5)*sample[i][j] + (1/5)*m[j]
-                    sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
+                    # sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
                     pass
         return sample
 
@@ -109,7 +109,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
 
         if return_test:
             if get_flatten:
-                X_test = flatten(X_test)
+                X_test = [flatten(X_test)]
             return X_train,Y_train,X_test
         else:
             return X_train,Y_train
@@ -176,7 +176,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
 
 
 
-def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def predict_flavors_unique_ridge_regression_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -224,7 +224,66 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     # # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
     # print(ridge.clf.W)
     
-    result = ridge.predict([X_test])[0]
+    result = ridge.predict(X_test)[0]
+    result = [0 if r<0 else r for r in result]
+    # result = model.predict(X_test)[0]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+    return predict,virtual_machine_sum
+
+
+def predict_flavors_unique_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    # modify @ 2018-03-15 
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
+
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
+    
+    N = 3
+    get_flatten = True
+    # with argumentation
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=get_flatten,argumentation=True)
+
+
+    # without argumentation
+    # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
+
+    from load_data import load_data
+    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
+    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=get_flatten,argumentation=True)
+    
+
+    ridge = Ridge_Single(alpha=0.01)
+
+    samples_X,samples_Y = X_train_old,Y_train_old
+    # samples_X,samples_Y = [],[]
+
+    # samples_X.append(X_train)
+    # samples_Y.append(Y_train)
+
+    samples_X.append(X_train)
+    samples_Y.append(Y_train)
+
+    # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=get_flatten,argumentation=False)
+    
+    # samples_X.append(X_train)
+    # samples_Y.append(Y_train)
+
+    ridge.weighted_fit(samples_X,samples_Y,[0.25,0.25,0.25,0.25])
+
+    # lasso.weighted_fit(samples_X,samples_Y,[0,0,0,1])
+
+    # model = grid_search(Ridge_Full,{"alpha":arange(0.01,2,200)},samples_X,samples_Y,[0,0,0,1],verbose=False)
+    # # from load_data import load_data
+    # # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
+    # print(ridge.clf.W)
+    
+    result = ridge.predict(X_test)[0]
     result = [0 if r<0 else r for r in result]
     # result = model.predict(X_test)[0]
     for f in flavors_unique:
@@ -375,14 +434,23 @@ class Ridge_Full(BasePredictor):
 class Ridge_Single(BasePredictor):
     def __init__(self,alpha=1):
         BasePredictor.__init__(self)
-        self.clf = None
+        self.clfs = []
         self.alpha = alpha
+        self.shape_X = None
     
     def fit(self,X,y):
-        clf = Ridge(fit_intercept=False,alpha=self.alpha)
-        X = reshape(X,(shape(X)[0],-1))
-        clf.fit(X,y)
-        self.clf = clf
+        from linalg.common import fancy
+        X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
+        self.shape_X = shape(X)
+        for i in range(shape(y)[1]):
+            clf = Ridge(fit_intercept=False,alpha=self.alpha)
+            _X = fancy(X,-1,-1,i)
+            _y = fancy(y,-1,(i,i+1))
+            # print(shape(_X))
+            # print(shape(_y))
+
+            clf.fit(_X,_y)
+            self.clfs.append(clf)
 
     def weighted_fit(self,Xs,Ys,weights):
         X = []
@@ -391,13 +459,20 @@ class Ridge_Single(BasePredictor):
             X.extend(v)
         for v in Ys:
             y.extend(v)
-            
         self.fit(X,y)
 
     def predict(self,X):
-        X = reshape(X,(shape(X)[0],-1))
-        return self.clf.predict(X)
-    pass
+        prediction = []
+        from linalg.common import fancy
+        s = list(self.shape_X)
+        s[0] = -1
+        X = reshape(X,s)
+        for i in range(self.shape_X[-1]):
+            clf = self.clfs[i]
+            _X = fancy(X,-1,-1,i)
+            p = clf.predict(_X)
+            prediction.append(p[0])
+        return matrix_transpose(prediction)
 
 
 # build output lines
@@ -408,7 +483,7 @@ def predict_vm(ecs_lines,input_lines):
     machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines)
 
-    predict,virtual_machine_sum = predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    predict,virtual_machine_sum = predict_flavors_unique_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))
