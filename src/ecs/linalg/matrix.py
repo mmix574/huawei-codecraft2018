@@ -129,7 +129,7 @@ def matrix_inverse(A):
                 _col_switch(R,j,max_w)
             if i>j:
                 if A[j][j]==0:
-                    return None
+                    raise Exception
                 fa = -A[i][j]/A[j][j]
                 _row_assign(A,i,j,fa)
                 _row_assign(L,i,j,fa)
@@ -138,7 +138,7 @@ def matrix_inverse(A):
         for i in range(N)[::-1]:
             if i<j:
                 if A[j][j]==0:
-                    return None
+                    raise Exception
                 fa = -A[i][j]/A[j][j]
                 _row_assign(A,i,j,fa)
                 _row_assign(L,i,j,fa)

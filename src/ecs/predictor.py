@@ -14,6 +14,7 @@ from utils import parse_ecs_lines, parse_input_lines
 from utils import corrcoef
 from utils import l2_loss,official_score
 
+from learn.linear_model import LinearRegression,Ridge
 
 
 def get_flavors_unique_mapping(flavors_unique):
@@ -138,13 +139,13 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
-    sm = Smoothing(weight_decay=0.4)
+    sm = Smoothing(weight_decay=0.71)
     sm.fit(X_train,Y_train)
     # print(sm.loss(X_train,Y_train))
     # print(sm.score(X_train,Y_train))
 
-    lr = LR()
-    lr.fit(X_train,Y_train)
+    # lr = LR()
+    # lr.fit(X_train,Y_train)
 
     # print(shape([X_train].extend(X_train_old)))
     samples_X = X_train_old
@@ -153,11 +154,12 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     samples_X.append(X_train)
     samples_Y.append(Y_train)
 
-    model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.25,0.25,0.25,0.25],verbose=False)
+    model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.1,0.2,0.3,0.4],verbose=False)
     # from load_data import load_data
     # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
 
     # result = sm.predict(X_test)[0]
+
     result = model.predict(X_test)[0]
     for f in flavors_unique:
         p = result[mapping_index[f]]
@@ -191,23 +193,21 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
 
-    lr = LR()
+    lr = LR(alpha=1)
     lr.fit(X_train,Y_train)
-    
 
-    # print(shape([X_train].extend(X_train_old)))
-    samples_X = X_train_old
-    samples_Y = Y_train_old
-
+    samples_X,samples_Y = X_train_old,Y_train_old
     samples_X.append(X_train)
     samples_Y.append(Y_train)
 
-    model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.25,0.25,0.25,0.25],verbose=False)
-    # from load_data import load_data
-    # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
 
-    # result = sm.predict(X_test)[0]
-    result = model.predict(X_test)[0]
+    # model = grid_search(LR,{"alpha":arange(0.1,10,200)},samples_X,samples_Y,[0.25,0.25,0.25,0.25],verbose=True)
+    # # from load_data import load_data
+    # # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
+
+    result = lr.predict([X_test])[0]
+    result = [0 if r<0 else r for r in result]
+    # result = model.predict(X_test)[0]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
@@ -230,7 +230,7 @@ def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False,scor
     min_loss = None
     for p in paramater_gen(paramaters):
         clf = estimator(**p)
-        clf.fit(Xs,Ys)
+        clf.weighted_fit(Xs,Ys,weights_of_samples)
         score = clf.weighted_score(Xs,Ys,weights_of_samples)
         loss = clf.weighted_loss(Xs,Ys,weights_of_samples)
 
@@ -248,6 +248,8 @@ def grid_search(estimator,paramaters,Xs,Ys,weights_of_samples,verbose=False,scor
                 max_parameter = p
                 max_score = score
                 min_loss = loss
+    if verbose:
+        print(max_parameter)
     return estimator(**max_parameter)
 
 
@@ -281,12 +283,12 @@ class BasePredictor:
     def weighted_loss(self,Xs,Ys,weights):
         total_loss = 0
         for i in range(len(Xs)):
-            total_loss+=self.loss(Xs[i],Ys[i])
+            total_loss+=((self.loss(Xs[i],Ys[i]))*weights[i])
         return total_loss/float(len(Xs))
     def weighted_score(self,Xs,Ys,weights):
         total_score = 0
         for i in range(len(Xs)):
-            total_score+=self.score(Xs[i],Ys[i])
+            total_score+=((self.score(Xs[i],Ys[i]))*weights[i])
         return total_score/float(len(Xs))
 
 
@@ -297,7 +299,9 @@ class Smoothing(BasePredictor):
         BasePredictor.__init__(self)
         self.weight_decay = weight_decay
 
-
+    def fit(self,X,y):
+        # self.weighted_fit([X],[y],[1])
+        pass
     def weighted_fit(self,Xs,Ys,weights):
         pass
 
@@ -322,35 +326,30 @@ class Smoothing(BasePredictor):
 
 
 class LR(BasePredictor):
-    def __init__(self):
+    def __init__(self,alpha=1):
         BasePredictor.__init__(self)
         self.clf = None
+        self.alpha = alpha
     
     def fit(self,X,y):
-        from learn.linear_model import LinearRegression
-        clf = LinearRegression(fit_intercept=False)
-
+        clf = Ridge(fit_intercept=False,alpha=self.alpha)
         X = reshape(X,(shape(X)[0],-1))
-        
-        print(shape(X))
-        print(shape(y))
-        
         clf.fit(X,y)
-
-        # print(reshape(X,(-1,15)))
-        # print(shape(reshape(X,(-1,))))
-        # print(shape(X))
-        # print(shape(y))        
-
         self.clf = clf
 
     def weighted_fit(self,Xs,Ys,weights):
-        pass
-
+        X = []
+        y = []
+        for v in Xs:
+            X.extend(v)
+        for v in Ys:
+            y.extend(v)
+            
+        self.fit(X,y)
 
     def predict(self,X):
-        # assert(dim(X)==3)
-        print(shape(X))
+        X = reshape(X,(shape(X)[0],-1))
+        return self.clf.predict(X)
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
