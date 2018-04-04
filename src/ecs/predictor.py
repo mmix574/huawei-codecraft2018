@@ -87,7 +87,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
                 if abs(sample[i][j]-m[j]) > 3*std[j]:
                     # sample[i][j] = m[j]
                     # sample[i][j] = (4/5)*sample[i][j] + (1/5)*m[j]
-                    # sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
+                    sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
                     pass
         return sample
 
@@ -118,58 +118,61 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     X_train,Y_train,X_test = XY_generate(sample,N=N,get_flatten=get_flatten,return_test=True)
     return X_train,Y_train,X_test 
 
-# 73.176
-def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    # modify @ 2018-03-15 
-    predict = {}.fromkeys(flavors_unique)
-    for f in flavors_unique:
-        predict[f] = 0
-    virtual_machine_sum = 0
 
-    mapping_index = get_flavors_unique_mapping(flavors_unique)
-    predict_days = (predict_end_time-predict_start_time).days
+# closed @ 2018-04-04 
+
+# # 73.176
+# def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+#     # modify @ 2018-03-15 
+#     predict = {}.fromkeys(flavors_unique)
+#     for f in flavors_unique:
+#         predict[f] = 0
+#     virtual_machine_sum = 0
+
+#     mapping_index = get_flavors_unique_mapping(flavors_unique)
+#     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 3
+#     N = 3
 
-    # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
+#     # with argumentation
+#     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
 
 
-    # without argumentation
-    # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
+#     # without argumentation
+#     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
 
-    from load_data import load_data
+#     from load_data import load_data
 
-    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
+#     # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
+#     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
-    sm = Smoothing(weight_decay=0.71)
-    sm.fit(X_train,Y_train)
-    # print(sm.loss(X_train,Y_train))
-    # print(sm.score(X_train,Y_train))
+#     sm = Smoothing(weight_decay=0.71)
+#     sm.fit(X_train,Y_train)
+#     # print(sm.loss(X_train,Y_train))
+#     # print(sm.score(X_train,Y_train))
 
-    # Ridge_Full = Ridge_Full()
-    # Ridge_Full.fit(X_train,Y_train)
+#     # Ridge_Full = Ridge_Full()
+#     # Ridge_Full.fit(X_train,Y_train)
 
-    # print(shape([X_train].extend(X_train_old)))
-    samples_X = X_train_old
-    samples_Y = Y_train_old
+#     # print(shape([X_train].extend(X_train_old)))
+#     samples_X = X_train_old
+#     samples_Y = Y_train_old
 
-    samples_X.append(X_train)
-    samples_Y.append(Y_train)
+#     samples_X.append(X_train)
+#     samples_Y.append(Y_train)
 
-    model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.1,0.2,0.3,0.4],verbose=False)
-    # from load_data import load_data
-    # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
+#     model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.1,0.2,0.3,0.4],verbose=False)
+#     # from load_data import load_data
+#     # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
 
-    # result = sm.predict(X_test)[0]
+#     # result = sm.predict(X_test)[0]
 
-    result = model.predict(X_test)[0]
-    for f in flavors_unique:
-        p = result[mapping_index[f]]
-        predict[f] = int(round(p))
-        virtual_machine_sum += int(round(p))
-    return predict,virtual_machine_sum
+#     result = model.predict(X_test)[0]
+#     for f in flavors_unique:
+#         p = result[mapping_index[f]]
+#         predict[f] = int(round(p))
+#         virtual_machine_sum += int(round(p))
+#     return predict,virtual_machine_sum
 
 
 
