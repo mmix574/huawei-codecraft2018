@@ -180,7 +180,7 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 3
+    N = 1
 
     # with argumentation
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
