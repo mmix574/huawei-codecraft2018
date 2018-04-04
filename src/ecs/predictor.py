@@ -25,7 +25,6 @@ def get_flavors_unique_mapping(flavors_unique):
         c+=1
     return mapping_index
 
-
 # fix bug 2018-04-02
 # modify @2018-03-28
 # sample[len(sample)-1] is latest frequency slicing 
@@ -87,7 +86,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
             for j in range(shape(sample)[1]):
                 if abs(sample[i][j]-m[j]) > 3*std[j]:
                     # sample[i][j] = m[j]
-                    # sample[i][j] = (2/3)*sample[i][j] + (1/3)*m[j]
+                    # sample[i][j] = (4/5)*sample[i][j] + (1/5)*m[j]
                     # sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
                     pass
         return sample
@@ -95,6 +94,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     sample = processing_sample(sample)
 
     def XY_generate(sample,N=1,get_flatten=False,return_test=False):
+        
         X_train = []
         Y_train = []
         for i in range(N,len(sample)):
@@ -103,14 +103,17 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
                 X = flatten(X)
             y = sample[i]
             X_train.append(X)
-            Y_train.append(y)        
+            Y_train.append(y)
+
+        X_test = [sample[len(sample)-N+k] for k in range(N)]
+
         if return_test:
-            X_test = [sample[len(sample)-N+k] for k in range(N)]
             if get_flatten:
                 X_test = flatten(X_test)
             return X_train,Y_train,X_test
         else:
             return X_train,Y_train
+    # end function
 
     X_train,Y_train,X_test = XY_generate(sample,N=N,get_flatten=get_flatten,return_test=True)
     return X_train,Y_train,X_test 
@@ -145,8 +148,8 @@ def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_
     # print(sm.loss(X_train,Y_train))
     # print(sm.score(X_train,Y_train))
 
-    # lr = LR()
-    # lr.fit(X_train,Y_train)
+    # Ridge_Full = Ridge_Full()
+    # Ridge_Full.fit(X_train,Y_train)
 
     # print(shape([X_train].extend(X_train_old)))
     samples_X = X_train_old
@@ -181,9 +184,9 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     predict_days = (predict_end_time-predict_start_time).days
     
     N = 3
-
+    get_flatten = True
     # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=get_flatten,argumentation=True)
 
 
     # without argumentation
@@ -191,22 +194,34 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
 
     from load_data import load_data
     # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
+    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=get_flatten,argumentation=False)
     
 
-    lr = LR(alpha=0.1)
+    ridge = Ridge_Full(alpha=1)
 
     samples_X,samples_Y = X_train_old,Y_train_old
+
     samples_X.append(X_train)
     samples_Y.append(Y_train)
 
-    lr.weighted_fit(samples_X,samples_Y,[0.25,0.25,0.25,0.25])
+    samples_X.append(X_train)
+    samples_Y.append(Y_train)
 
-    # model = grid_search(LR,{"alpha":arange(0.1,10,200)},samples_X,samples_Y,[0.25,0.25,0.25,0.25],verbose=True)
+    # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=get_flatten,argumentation=False)
+    
+    # samples_X.append(X_train)
+    # samples_Y.append(Y_train)
+
+    ridge.weighted_fit(samples_X,samples_Y,[0.25,0.25,0.25,0.25])
+
+    # lasso.weighted_fit(samples_X,samples_Y,[0,0,0,1])
+
+    # model = grid_search(Ridge_Full,{"alpha":arange(0.01,2,200)},samples_X,samples_Y,[0,0,0,1],verbose=False)
     # # from load_data import load_data
     # # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
-
-    result = lr.predict([X_test])[0]
+    # print(ridge.clf.W)
+    
+    result = ridge.predict([X_test])[0]
     result = [0 if r<0 else r for r in result]
     # result = model.predict(X_test)[0]
     for f in flavors_unique:
@@ -277,20 +292,22 @@ class BasePredictor:
 
     def loss(self,X,y):
         y_ = self.predict(X)
+        
         return l2_loss(y,y_)
     def score(self,X,y):
         y_ = self.predict(X)
+        # print(shape(y_))
         return official_score(y,y_)
     def weighted_loss(self,Xs,Ys,weights):
         total_loss = 0
         for i in range(len(Xs)):
             total_loss+=((self.loss(Xs[i],Ys[i]))*weights[i])
-        return total_loss/float(len(Xs))
+        return total_loss
     def weighted_score(self,Xs,Ys,weights):
         total_score = 0
         for i in range(len(Xs)):
             total_score+=((self.score(Xs[i],Ys[i]))*weights[i])
-        return total_score/float(len(Xs))
+        return total_score
 
 
 
@@ -326,7 +343,7 @@ class Smoothing(BasePredictor):
         return R
 
 
-class LR(BasePredictor):
+class Ridge_Full(BasePredictor):
     def __init__(self,alpha=1):
         BasePredictor.__init__(self)
         self.clf = None
@@ -351,6 +368,34 @@ class LR(BasePredictor):
     def predict(self,X):
         X = reshape(X,(shape(X)[0],-1))
         return self.clf.predict(X)
+
+class Ridge_Single(BasePredictor):
+    def __init__(self,alpha=1):
+        BasePredictor.__init__(self)
+        self.clf = None
+        self.alpha = alpha
+    
+    def fit(self,X,y):
+        clf = Ridge(fit_intercept=False,alpha=self.alpha)
+        X = reshape(X,(shape(X)[0],-1))
+        clf.fit(X,y)
+        self.clf = clf
+
+    def weighted_fit(self,Xs,Ys,weights):
+        X = []
+        y = []
+        for v in Xs:
+            X.extend(v)
+        for v in Ys:
+            y.extend(v)
+            
+        self.fit(X,y)
+
+    def predict(self,X):
+        X = reshape(X,(shape(X)[0],-1))
+        return self.clf.predict(X)
+    pass
+
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
