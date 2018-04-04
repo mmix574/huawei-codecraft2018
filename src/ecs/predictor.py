@@ -180,7 +180,7 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 1
+    N = 3
 
     # with argumentation
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
@@ -194,7 +194,7 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
 
-    lr = LR(alpha=0.5)
+    lr = LR(alpha=0.1)
 
     samples_X,samples_Y = X_train_old,Y_train_old
     samples_X.append(X_train)
