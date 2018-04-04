@@ -87,8 +87,9 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
             for j in range(shape(sample)[1]):
                 if abs(sample[i][j]-m[j]) > 3*std[j]:
                     # sample[i][j] = m[j]
-                    sample[i][j] = (2/3)*sample[i][j] + (1/3)*m[j]
+                    # sample[i][j] = (2/3)*sample[i][j] + (1/3)*m[j]
                     # sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
+                    pass
         return sample
 
     sample = processing_sample(sample)
@@ -193,13 +194,13 @@ def predict_flavors_unique_linear_regression(ecs_logs,flavors_unique,training_st
     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
     
 
-    lr = LR(alpha=1)
-    lr.fit(X_train,Y_train)
+    lr = LR(alpha=0.5)
 
     samples_X,samples_Y = X_train_old,Y_train_old
     samples_X.append(X_train)
     samples_Y.append(Y_train)
 
+    lr.weighted_fit(samples_X,samples_Y,[0.25,0.25,0.25,0.25])
 
     # model = grid_search(LR,{"alpha":arange(0.1,10,200)},samples_X,samples_Y,[0.25,0.25,0.25,0.25],verbose=True)
     # # from load_data import load_data
