@@ -414,6 +414,13 @@ class Ridge_Single(BasePredictor):
         return matrix_transpose(prediction)
 
 
+
+# add @ 2018-04-05
+def merge(flavors_unique,list_of_prediction):
+    #   return predict,virtual_machine_sum
+    pass
+
+
 # build output lines
 def predict_vm(ecs_lines,input_lines):
     if input_lines is None or ecs_lines is None:
