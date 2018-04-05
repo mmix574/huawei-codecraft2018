@@ -13,22 +13,15 @@ from linalg.vector import count_nonezero,arange
 from utils import parse_ecs_lines, parse_input_lines
 from utils import corrcoef
 from utils import l2_loss,official_score
+from utils import get_flavors_unique_mapping
 
 from learn.linear_model import LinearRegression,Ridge
-
-
-def get_flavors_unique_mapping(flavors_unique):
-    mapping_index = {}.fromkeys(flavors_unique)
-    c = 0
-    for f in flavors_unique:
-        mapping_index[f] = c
-        c+=1
-    return mapping_index
+from learn.lasso import Lasso
 
 # fix bug 2018-04-02
 # modify @2018-03-28
 # sample[len(sample)-1] is latest frequency slicing 
-def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=None,N=1,get_flatten=False,argumentation=False):
+def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=None,N=1,get_flatten=True,argumentation=False):
     assert(frequency[len(frequency)-1]=='d')
     assert((weekday_align==None and argumentation==False) or (weekday_align==None and argumentation==True) or (weekday_align!=None and argumentation==False))
 
@@ -82,14 +75,23 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
         m = mean(sample,axis=1)
         std = stdev(sample)
         # sample_T = matrix_transpose(sample)
+        removes = []
         for i in range(shape(sample)[0]):
             for j in range(shape(sample)[1]):
                 if abs(sample[i][j]-m[j]) > 3*std[j]:
+                    removes.append(i)
                     # sample[i][j] = m[j]
-                    # sample[i][j] = (4/5)*sample[i][j] + (1/5)*m[j]
-                    # sample[i][j] = (1/3)*sample[i][j] + (2/3)*m[j]
-                    pass
+                    # sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
+                    # sample[i][j] = (4/5.0)*sample[i][j] + (1/5.0)*m[j]
+                    # sample[i][j] = (7/8.0)*sample[i][j] + (1/8.0)*m[j]
+        
         return sample
+        
+        if len(removes)/float(len(sample)) <0.5:
+            sample = [sample[i] for i in range(len(sample)) if i not in removes]
+            return sample
+        else:
+            return sample
 
     sample = processing_sample(sample)
 
@@ -117,6 +119,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
 
     X_train,Y_train,X_test = XY_generate(sample,N=N,get_flatten=get_flatten,return_test=True)
     return X_train,Y_train,X_test 
+
 
 
 def predict_flavors_unique_Smoothing_gridsearch(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -167,15 +170,16 @@ def predict_flavors_unique_ridge_regression_full(ecs_logs,flavors_unique,trainin
       # with argumentation
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=get_flatten,argumentation=True)
 
-    X_train.extend(X_train)
-    Y_train.extend(Y_train)
+    # X_train.extend(X_train)
+    # Y_train.extend(Y_train)
 
 
     from load_data import load_data
     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=get_flatten,argumentation=False)
     
-    X_train.extend(X_train_old)
-    Y_train.extend(Y_train_old)
+    # X_train.extend(X_train_old)
+    # Y_train.extend(Y_train_old)
+
 
 
     from preprocessing import normalize
@@ -184,18 +188,24 @@ def predict_flavors_unique_ridge_regression_full(ecs_logs,flavors_unique,trainin
     X_test = multiply(X_test,norm_inv)
 
 
-    ridge = Ridge_Full(alpha=0.01)
+    ridge = Ridge_Full(alpha=2)
+
+    # # new
+    # X,y = bagging_with_model(ridge,X_train_old,Y_train_old,X_train,Y_train,max_iter=20)
+
+    # X_train.extend(X)
+    # Y_train.extend(y)
+
     ridge.fit(X_train,Y_train)
 
-    # lasso.weighted_fit(samples_X,samples_Y,[0,0,0,1])
+    # clf = ensamble_estimator(Ridge_Full,{'alpha':0.01})
 
-    # model = grid_search(Ridge_Full,{"alpha":arange(0.01,2,200)},samples_X,samples_Y,[0,0,0,1],verbose=False)
-    # # from load_data import load_data
-    # # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
-    # print(ridge.clf.W)
+    # clf.fit(X_train,Y_train)
+    # ridge.fit(X_train,Y_train)
     
     result = ridge.predict(X_test)[0]
     result = [0 if r<0 else r for r in result]
+    # print(result)
     # result = model.predict(X_test)[0]
     for f in flavors_unique:
         p = result[mapping_index[f]]
@@ -226,12 +236,12 @@ def predict_flavors_unique_ridge_regression_single(ecs_logs,flavors_unique,train
     # X_train.extend(X_train_old)
     # Y_train.extend(Y_train_old)
 
-    from preprocessing import normalize
-    X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
-    norm_inv = [0 if x==0 else 1/float(x)for x in norm]
-    X_test = multiply(X_test,norm_inv)
+    # from preprocessing import normalize
+    # X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
+    # norm_inv = [0 if x==0 else 1/float(x)for x in norm]
+    # X_test = multiply(X_test,norm_inv)
 
-    ridge = Ridge_Single(alpha=0.1)
+    ridge = Ridge_Single(alpha=0.01)
     ridge.fit(X_train,Y_train)
     
     result = ridge.predict(X_test)[0]
@@ -243,6 +253,118 @@ def predict_flavors_unique_ridge_regression_single(ecs_logs,flavors_unique,train
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
 
+
+# def predict_flavors_unique_lasso_regression_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+#     predict = {}.fromkeys(flavors_unique)
+#     for f in flavors_unique:
+#         predict[f] = 0
+#     virtual_machine_sum = 0
+
+#     mapping_index = get_flavors_unique_mapping(flavors_unique)
+#     predict_days = (predict_end_time-predict_start_time).days
+    
+#     N = 3
+#     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=True,argumentation=True)
+
+
+#     # from load_data import load_data
+#     # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=get_flatten,argumentation=False)
+    
+#     # X_train.extend(X_train_old)
+#     # Y_train.extend(Y_train_old)
+
+#     from preprocessing import normalize
+#     X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
+#     norm_inv = [0 if x==0 else 1/float(x)for x in norm]
+#     X_test = multiply(X_test,norm_inv)
+
+#     ridge = LassoFull(alpha=0.1)
+#     ridge.fit(X_train,Y_train)
+    
+#     result = ridge.predict(X_test)[0]
+#     result = [0 if r<0 else r for r in result]
+#     # result = model.predict(X_test)[0]
+#     for f in flavors_unique:
+#         p = result[mapping_index[f]]
+#         predict[f] = int(round(p))
+#         virtual_machine_sum += int(round(p))
+#     return predict,virtual_machine_sum
+
+
+class ensamble_estimator:
+    def __init__(self,estimator,parameter,max_clf = 100):
+        self.estimator = estimator
+        self.parameter = parameter
+        self.max_clf = max_clf
+        self.clfs = []
+        
+
+    def bagging(self,X_train,Y_train):
+        N = shape(X_train)[0]
+        index = []
+        for i in range(N):
+            index.append(random.randrange(N))
+        X = [X_train[i] for i in index]
+        y = [Y_train[i] for i in index]
+        return X,y
+    
+    def bagging_with_model(self,regressor_instance,X_train,Y_train,X_val,Y_val,max_iter=10,verbose=False):
+        max_score = None
+        best_XY = None
+        for i in range(max_iter):
+            X,y = self.bagging(X_train,Y_train)
+            regressor_instance.fit(X,y)
+            score = regressor_instance.score(X_val,Y_val)
+            if not max_score or score>max_score:
+                if verbose:
+                    print(score)
+                score =  max_score
+                best_XY = (X,y)
+        X_train,Y_train = best_XY
+        return X_train,Y_train
+
+    def fit(self,X,y):
+        for i in range(self.max_clf):
+            clf = self.estimator(**self.parameter)
+            _X,_y = self.bagging(X,y)
+            # _X,_y = self.bagging_with_model(clf,X,y,X,y)
+            clf.fit(_X,y)
+            self.clfs.append(clf)
+        
+    def predict(self,X):
+        prediction = None
+        for i in range(self.max_clf):
+            if not prediction:
+                prediction = self.clfs[i].predict(X)
+            else:
+                prediction = plus(prediction,self.clfs[i].predict(X))
+        prediction = multiply(prediction,1/float(self.max_clf))
+        return prediction
+
+
+def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,max_iter=100,verbose=False):
+    def bagging(X_train,Y_train):
+        N = shape(X_train)[0]
+        index = []
+        for i in range(N):
+            index.append(random.randrange(N))
+        X = [X_train[i] for i in index]
+        y = [Y_train[i] for i in index]
+        return X,y
+    max_score = None
+    best_XY = None
+    for i in range(max_iter):
+        X,y = bagging(X_train,Y_train)
+        regressor_instance.fit(X,y)
+        score = regressor_instance.score(X_val,Y_val)
+        if not max_score or score>max_score:
+            if verbose:
+                print(score)
+            score =  max_score
+            best_XY = (X,y)
+    
+    X_train,Y_train = best_XY
+    return X_train,Y_train
 
 # using grid search to tune hyper paramaters
 # estimator: regressor class
@@ -324,26 +446,7 @@ def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="official",cv=
     return estimator(**max_parameter)
 
 
-
-class BasePredictor:
-    def __init__(self):
-        pass
-    def fit(self,X,y):
-        pass
-    def predict(self,X):
-        if dim(X) == 1:
-            return [0 for _ in X]
-        R = [[0 for _ in range(shape(X)[1])]]
-        for i in range(shape(X)[0]-1):
-            R.append(X[i])
-        return R
-    def loss(self,X,y):
-        y_ = self.predict(X)
-        return l2_loss(y,y_)
-    def score(self,X,y):
-        y_ = self.predict(X)
-        # print(shape(y_))
-        return official_score(y,y_)
+from predictions.base import BasePredictor
 
 # add @2018-03-28
 class Smoothing(BasePredictor):
@@ -428,42 +531,24 @@ class Ridge_Single(BasePredictor):
             p = clf.predict(_X)
             prediction.append(p[0])
         return matrix_transpose(prediction)
+        
+# class LassoFull(BasePredictor):
 
+#     def __init__(self,alpha=1):
+#         BasePredictor.__init__(self)
+#         self.clf = None
+#         self.alpha = alpha
 
-# tody
-class LassoRegression(BasePredictor):
-
-    # def __init__(self,alpha=1):
-    #     BasePredictor.__init__(self)
-    #     self.clfs = []
-    #     self.alpha = alpha
-    #     self.shape_X = None
+#         self.shape_X = None
+#         self.shape_Y = None
     
-    # def fit(self,X,y):
-    #     from linalg.common import fancy
-    #     X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
-    #     self.shape_X = shape(X)
-    #     for i in range(shape(y)[1]):
-    #         # print(i)
-
-    #         clf = Ridge(fit_intercept=True,alpha=self.alpha)
-    #         _X = fancy(X,-1,-1,i)
-    #         _y = fancy(y,-1,(i,i+1))
-            
-    #         clf.fit(_X,_y)
-    #         self.clfs.append(clf)
-            
-    # def predict(self,X):
-
-    pass
-
-class RandomForest(BasePredictor):
-    pass
-
-
-class NeuralNetwork(BasePredictor):
-    pass
-
+#     def fit(self,X,y):
+#         self.clf = Lasso(fit_intercept=False,alpha=self.alpha)
+#         from linalg.common import fancy
+#         self.clf.fit(X,y)
+#         # exit()
+#     def predict(self,X):
+#         return self.clf.predict(X)
 
 
 # add @ 2018-04-05

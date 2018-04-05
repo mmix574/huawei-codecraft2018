@@ -138,3 +138,12 @@ def official_score(y,y_):
         return _score_calc(y,y_)
     else:
         return mean([_score_calc(y[i],y_[i]) for i in range(len(y))])
+
+
+def get_flavors_unique_mapping(flavors_unique):
+    mapping_index = {}.fromkeys(flavors_unique)
+    c = 0
+    for f in flavors_unique:
+        mapping_index[f] = c
+        c+=1
+    return mapping_index
