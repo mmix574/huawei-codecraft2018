@@ -7,7 +7,7 @@ tar -czvf my.tar.gz  src/
 
 或者
 tar -czvf my.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py
-tar -czvf -day11_12.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py
+tar -czvf -day10_1.tar.gz  src/ecs/ecs.py src/ecs/predictor.py src/ecs/utils.py src/ecs/backpack.py src/ecs/paramater.py  src/ecs/linalg/*.py src/ecs/learn/*.py src/ecs/load_data.py src/ecs/preprocessing.py
 
 src/ecs/paramater/*.*
 
