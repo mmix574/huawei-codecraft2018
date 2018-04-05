@@ -149,13 +149,11 @@ def multiply(A,B):
         return [x*B for x in A]
 
     elif dim(A)==2 and type(B)==list:
-        assert(shape(A)==shape(B))
+        # fix bug @ 2018-04-05
+        assert(shape(A)[1:]==shape(B))
         R = []
         for i in range(shape(A)[0]):
-            r = []
-            for j in range(shape(A)[1]):
-                r.append(A[i][j]*B[i][j])
-            R.append(r)
+            R.append(multiply(A[i],B))
         return R
     elif dim(A)==2 and (type(B)==float or type(B)==int):
         R = []
