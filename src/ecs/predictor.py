@@ -119,61 +119,37 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return X_train,Y_train,X_test 
 
 
-# closed @ 2018-04-04 
+def predict_flavors_unique_Smoothing_gridsearch(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    # modify @ 2018-03-15 
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
 
-# # 73.176
-# def predict_flavors_unique(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-#     # modify @ 2018-03-15 
-#     predict = {}.fromkeys(flavors_unique)
-#     for f in flavors_unique:
-#         predict[f] = 0
-#     virtual_machine_sum = 0
-
-#     mapping_index = get_flavors_unique_mapping(flavors_unique)
-#     predict_days = (predict_end_time-predict_start_time).days
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
     
-#     N = 3
-
-#     # with argumentation
-#     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=False,argumentation=False)
-
-
-#     # without argumentation
-#     # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
-
-#     from load_data import load_data
-
-#     # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=False,argumentation=False)
-#     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=False,argumentation=True)
+    N = 3
+    # with argumentation
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=True,argumentation=True)
     
-#     sm = Smoothing(weight_decay=0.71)
-#     sm.fit(X_train,Y_train)
-#     # print(sm.loss(X_train,Y_train))
-#     # print(sm.score(X_train,Y_train))
+    from load_data import load_data
+    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=True,argumentation=False)
+    X_train.extend(X_train_old)
+    Y_train.extend(Y_train_old)
+    
+    
+    model = grid_search(Smoothing,{"weight_decay":arange(0.3,0.7,20)},X_train,Y_train,verbose=False)
+    
+    # model = Smoothing(weight_decay=0.8)
+    # model.fit(X_train,Y_train)
 
-#     # Ridge_Full = Ridge_Full()
-#     # Ridge_Full.fit(X_train,Y_train)
-
-#     # print(shape([X_train].extend(X_train_old)))
-#     samples_X = X_train_old
-#     samples_Y = Y_train_old
-
-#     samples_X.append(X_train)
-#     samples_Y.append(Y_train)
-
-#     model = grid_search(Smoothing,{"weight_decay":arange(0.1,1,200)},samples_X,samples_Y,[0.1,0.2,0.3,0.4],verbose=False)
-#     # from load_data import load_data
-#     # ll = load_data(flavors_unique,frequency='7d',weekday_align=None)
-
-#     # result = sm.predict(X_test)[0]
-
-#     result = model.predict(X_test)[0]
-#     for f in flavors_unique:
-#         p = result[mapping_index[f]]
-#         predict[f] = int(round(p))
-#         virtual_machine_sum += int(round(p))
-#     return predict,virtual_machine_sum
-
+    result = model.predict(X_test)[0]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+    return predict,virtual_machine_sum
 
 
 def predict_flavors_unique_ridge_regression_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -204,11 +180,11 @@ def predict_flavors_unique_ridge_regression_full(ecs_logs,flavors_unique,trainin
 
     from preprocessing import normalize
     X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
-    norm_inv = [1/float(x)for x in norm]
+    norm_inv = [0 if x==0 else 1/float(x)for x in norm]
     X_test = multiply(X_test,norm_inv)
 
 
-    ridge = Ridge_Full(alpha=0.1)
+    ridge = Ridge_Full(alpha=0.01)
     ridge.fit(X_train,Y_train)
 
     # lasso.weighted_fit(samples_X,samples_Y,[0,0,0,1])
@@ -243,18 +219,16 @@ def predict_flavors_unique_ridge_regression_single(ecs_logs,flavors_unique,train
     # with argumentation
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=get_flatten,argumentation=True)
 
-    # without argumentation
-    # X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=3,get_flatten=False)
 
-    from load_data import load_data
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=get_flatten,argumentation=False)
+    # from load_data import load_data
+    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=get_flatten,argumentation=False)
     
-    X_train.extend(X_train_old)
-    Y_train.extend(Y_train_old)
+    # X_train.extend(X_train_old)
+    # Y_train.extend(Y_train_old)
 
     from preprocessing import normalize
     X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
-    norm_inv = [1/float(x)for x in norm]
+    norm_inv = [0 if x==0 else 1/float(x)for x in norm]
     X_test = multiply(X_test,norm_inv)
 
     ridge = Ridge_Single(alpha=0.1)
@@ -269,10 +243,52 @@ def predict_flavors_unique_ridge_regression_single(ecs_logs,flavors_unique,train
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
 
+
 # using grid search to tune hyper paramaters
 # estimator: regressor class
 # paramaters = {'w':[0.1,0.2]},paramaters to try
-def grid_search(estimator,paramaters,X,Y,verbose=False,scoring="official"):
+def grid_search(estimator,paramaters,X,y,verbose=False,scoring="official"):
+    def paramater_gen(paramaters):
+        N = len(paramaters)
+        from itertools import product
+        value = list(product(*paramaters.values()))
+        for v in value:
+            yield dict(zip(paramaters.keys(),v))
+
+    max_model = None
+    max_parameter = None
+    max_score = None
+    min_loss = None
+    for p in paramater_gen(paramaters):
+        clf = estimator(**p)
+        clf.fit(X,y)
+        score = clf.score(X,y)
+        loss = clf.loss(X,y)
+
+        if verbose:
+            print(p,score,loss)
+
+        assert(scoring == "official" or scoring == "l2loss")
+        if scoring == "official":
+            if max_parameter==None or max_score<score:
+                max_parameter = p
+                max_score = score
+                min_loss = loss
+                max_model = clf
+        elif scoring == "l2loss":
+            if max_parameter==None or min_loss>loss:
+                max_parameter = p
+                max_score = score
+                min_loss = loss
+                max_model = clf
+    if verbose:
+        print(max_parameter)
+    return max_model
+
+
+# using grid search with cross validatin to tune hyper paramaters
+# add @ 2018-04-05
+def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="official",cv=None):
     def paramater_gen(paramaters):
         N = len(paramaters)
         from itertools import product
@@ -285,9 +301,9 @@ def grid_search(estimator,paramaters,X,Y,verbose=False,scoring="official"):
     min_loss = None
     for p in paramater_gen(paramaters):
         clf = estimator(**p)
-        clf.weighted_fit(Xs,Ys,weights_of_samples)
-        score = clf.weighted_score(Xs,Ys,weights_of_samples)
-        loss = clf.weighted_loss(Xs,Ys,weights_of_samples)
+        clf.fit(X,y)
+        score = clf.score(X,y)
+        loss = clf.loss(X,y)
 
         if verbose:
             print(p,score,loss)
@@ -306,6 +322,8 @@ def grid_search(estimator,paramaters,X,Y,verbose=False,scoring="official"):
     if verbose:
         print(max_parameter)
     return estimator(**max_parameter)
+
+
 
 class BasePredictor:
     def __init__(self):
@@ -332,17 +350,16 @@ class Smoothing(BasePredictor):
     def __init__(self,weight_decay=0.4):
         BasePredictor.__init__(self)
         self.weight_decay = weight_decay
+        self.shape_X = None
+        self.shape_Y = None
 
     def fit(self,X,y):
-        # self.weighted_fit([X],[y],[1])
-        pass
-    def weighted_fit(self,Xs,Ys,weights):
-        pass
+        self.shape_X = shape(X)
+        self.shape_Y = shape(y)
 
     def predict(self,X):
-        # assert(dim(X)==3)
-        if dim(X)==2:
-            X = [X]
+        X = reshape(X,(shape(X)[0],-1,self.shape_Y[-1]))
+        X = X[::-1]
         X_transform = [self.linear_weighted_smoothing(x) for x in X]
         return X_transform
 
@@ -350,7 +367,6 @@ class Smoothing(BasePredictor):
         assert(dim(X)==2)
         N = len(X)
         sum_w = sum([math.pow(self.weight_decay,k) for k in range(len(X))])
-        
         R = X[0]
         for i in range(1,N):
             R = plus(
@@ -414,6 +430,41 @@ class Ridge_Single(BasePredictor):
         return matrix_transpose(prediction)
 
 
+# tody
+class LassoRegression(BasePredictor):
+
+    # def __init__(self,alpha=1):
+    #     BasePredictor.__init__(self)
+    #     self.clfs = []
+    #     self.alpha = alpha
+    #     self.shape_X = None
+    
+    # def fit(self,X,y):
+    #     from linalg.common import fancy
+    #     X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
+    #     self.shape_X = shape(X)
+    #     for i in range(shape(y)[1]):
+    #         # print(i)
+
+    #         clf = Ridge(fit_intercept=True,alpha=self.alpha)
+    #         _X = fancy(X,-1,-1,i)
+    #         _y = fancy(y,-1,(i,i+1))
+            
+    #         clf.fit(_X,_y)
+    #         self.clfs.append(clf)
+            
+    # def predict(self,X):
+
+    pass
+
+class RandomForest(BasePredictor):
+    pass
+
+
+class NeuralNetwork(BasePredictor):
+    pass
+
+
 
 # add @ 2018-04-05
 def merge(flavors_unique,list_of_prediction):
@@ -423,13 +474,19 @@ def merge(flavors_unique,list_of_prediction):
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
+
+    # predict_method = predict_flavors_unique_Smoothing_gridsearch
+    predict_method = predict_flavors_unique_ridge_regression_full
+    # predict_method = predict_flavors_unique_ridge_regression_single
+
+
     if input_lines is None or ecs_lines is None:
         return []
 
     machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines)
 
-    predict,virtual_machine_sum = predict_flavors_unique_ridge_regression_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    predict,virtual_machine_sum = predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))

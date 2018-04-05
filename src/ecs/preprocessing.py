@@ -27,14 +27,16 @@ def normalize(X,norm='l2',axis=1,return_norm=False):
 
         for i in range(shape(X)[0]):
             n = sqrt(sum(square(X[i])))
-            A[i] = (multiply(X[i],1/float(n)))
+            if n!=0:
+                A[i] = (multiply(X[i],1/float(n)))
             norm.append(n)
     elif axis == 1:
         A = matrix_transpose(X)
     
         for j in range(shape(X)[1]):
             n = sqrt(sum(square(X_T[j])))
-            A[j] = (multiply(X_T[j],1/float(n)))
+            if n!=0:
+                A[j] = (multiply(X_T[j],1/float(n)))
             norm.append(n)
         
         A = matrix_transpose(A)
