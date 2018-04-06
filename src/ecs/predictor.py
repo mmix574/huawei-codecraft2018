@@ -81,10 +81,9 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
                 if abs(sample[i][j]-m[j]) > 3*std[j]:
                     removes.append(i)
                     # sample[i][j] = m[j]
-                    # sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
+                    sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
                     # sample[i][j] = (4/5.0)*sample[i][j] + (1/5.0)*m[j]
                     # sample[i][j] = (7/8.0)*sample[i][j] + (1/8.0)*m[j]
-        
         return sample
         
         if len(removes)/float(len(sample)) <0.5:
@@ -92,7 +91,6 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
             return sample
         else:
             return sample
-
     sample = processing_sample(sample)
 
     def XY_generate(sample,N=1,get_flatten=False,return_test=False):
