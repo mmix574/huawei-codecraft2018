@@ -259,7 +259,7 @@ def backpack_summary(backpack_result):
 
 if __name__ == '__main__':
     # python27_path = "C:\Python27\python.exe"
-    os.system('C:/python27/python.exe ecs.py TrainData_2015.1.1_2015.2.19.txt input_5flavors_cpu_7days.txt output.txt')
+    os.system('python ecs.py TrainData_2015.1.1_2015.2.19.txt input_5flavors_cpu_7days.txt output.txt')
     # get parsed  
     p,b = parse('input_15flavors_cpu_7days.txt','output.txt','TestData_2015.2.20_2015.2.27.txt')
 

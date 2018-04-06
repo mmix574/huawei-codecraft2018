@@ -104,7 +104,6 @@ def corrcoef(A):
 #     return [start + i*h for i in range(total_points)]
 
 
-
 from linalg.common import (dim, dot, mean, multiply, reshape, shape, sqrt,
                            square, zeros,plus,sum,minus)
 # 2018-04-02

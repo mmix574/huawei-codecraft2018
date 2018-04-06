@@ -1,6 +1,6 @@
 运行本地测试
-C:/python27/python.exe ecs.py TrainData_2015.1.1_2015.2.19.txt input_5flavors_cpu_7days.txt output.txt
-C:/python27/python.exe ecs.py TrainData_2015.1.1_2015.2.19.txt input_15flavors_cpu_7days.txt output.txt
+python ecs.py TrainData_2015.1.1_2015.2.19.txt input_5flavors_cpu_7days.txt output.txt
+python ecs.py TrainData_2015.1.1_2015.2.19.txt input_15flavors_cpu_7days.txt output.txt
 
 运行打包程序
 tar -czvf my.tar.gz  src/

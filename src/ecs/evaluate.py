@@ -278,7 +278,8 @@ if __name__ == '__main__':
     else:
         print('command error')
         exit()       
-    python27_path = "C:\Python27\python.exe"
+    # python27_path = "C:\Python27\python.exe"
+    python27_path = "python"
     dirs = [int(x) for x in os.listdir(backtest_folder)]
     dirs = sorted(dirs)
     temp_folder = 'temp'
