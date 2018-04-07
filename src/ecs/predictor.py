@@ -6,8 +6,8 @@ from datetime import timedelta
 from backpack import backpack_random_k_times
 from linalg.common import (dim, dot, mean, multiply, reshape, shape, sqrt,
                            square, zeros,plus,sum,minus)
-from linalg.common import flatten
-from linalg.matrix import hstack, matrix_matmul, matrix_transpose, shift,matrix_copy
+from linalg.common import flatten,fancy
+from linalg.matrix import hstack,vstack,matrix_matmul, matrix_transpose, shift,matrix_copy
 from linalg.vector import count_nonezero,arange
 
 from utils import parse_ecs_lines, parse_input_lines
@@ -19,6 +19,7 @@ from learn.linear_model import LinearRegression,Ridge
 from learn.lasso import Lasso
 
 from predictions.base import BasePredictor
+from preprocessing import normalize
 
 
 # fix bug 2018-04-02
@@ -173,9 +174,9 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
     # X_train.extend(X_train)
     # Y_train.extend(Y_train)
 
+
     from load_data import load_data
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=get_flatten,argumentation=True,which=[0,2])
-    # X_val_old,Y_val_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=get_flatten,argumentation=False,which=[1])
+    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=get_flatten,argumentation=False,which=[1,2])
 
     # X_train.extend(X_train_old)
     # Y_train.extend(Y_train_old)
@@ -185,31 +186,106 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
     # norm_inv = [0 if x==0 else 1/float(x)for x in norm]
     # X_test = multiply(X_test,norm_inv)
 
+    X_new = vstack([X_train,X_train_old])
+    Y_new = vstack([Y_train,Y_train_old])
+    from preprocessing import normalize
+    _,norm_X = normalize(X_new,norm='l1',axis=1,return_norm=True)
+    norm_inv_X = [0 if x==0 else 1/float(x)for x in norm_X]
+    _,norm_Y = normalize(Y_new,norm='l1',axis=1,return_norm=True)
+    norm_inv_Y = [0 if x==0 else 1/float(x)for x in norm_Y]
+    
+    X_train = multiply(X_train,norm_inv_X)
+    X_train_old = multiply(X_train_old,norm_inv_X)
+
+    # Y_train = multiply(Y_train,norm_inv_Y)
+    # Y_train_old = multiply(Y_train_old,norm_inv_Y)
+
+
+
     ridge = Ridge_Full(alpha=1)
 
-    X,y = bagging_with_model(ridge,X_train_old,Y_train_old,X_train,Y_train,max_iter=100,scoring='score')
-    X.extend(X_train)
-    y.extend(Y_train)
+    # X,y = bagging_with_model(ridge,X_train_old,Y_train_old,X_train,Y_train,max_iter=100,scoring='score')
+    # X.extend(X_train)
+    # y.extend(Y_train)
 
-    ees = bagging_estimator(Ridge_Full,{"alpha":1},max_clf=1000)
-    ees.fit(X,y)
+    # ees = bagging_estimator(Ridge_Full,{"alpha":1},max_clf=100)
+    # ees.fit(X,y)
+    X_test = multiply(X_test,norm_inv_X)
 
+    class Multi_Prediction_Warpper:
+        def __init__(self,estimator,parameter):
+            self.estimator = estimator
+            self.parameter = parameter
+            self.clfs = []
+            self.shape_Y = None
+
+        def fit(self,X,y):
+            assert(dim(y)==2)
+            
+            self.shape_Y = shape(y)
+            for i in range(shape(y)[1]):
+                p = self.parameter
+                clf = self.estimator(**p)
+                clf.fit(X,fancy(y,-1,i))
+                self.clfs.append(clf)
+
+        def predict(self,X):
+            R = []
+            for i in range(self.shape_Y[1]):
+                predict = self.clfs[i].predict(X).tolist()
+                R.append(predict)
+            return matrix_transpose(R)
+
+    
+    from sklearn.ensemble import GradientBoostingRegressor
+    clf = Multi_Prediction_Warpper(GradientBoostingRegressor,{})
+    clf.fit(X_train,Y_train)
+
+    # ees.fit(X_train,Y_train)
 
     ridge.fit(X_train,Y_train)
 
-    # print(ridge.score(X_train,Y_train))
-    # print(ridge.loss(X_train,Y_train))
-    
-    result = ees.predict(X_test)[0]
-    
     result = ridge.predict(X_test)[0]
-    result = [0 if r<0 else r for r in result]
+    # result = clf.predict(X_test)[0]
 
+
+    # ridge.fit(X_train,Y_train)
+
+    # result = ees.predict(X_test)[0]
+    # result = multiply(ridge.predict(X_test),norm_Y)[0]
+
+    result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
+
+
+class Multi_Prediction_Warpper:
+    def __init__(self,estimator,parameter):
+        self.estimator = estimator
+        self.parameter = parameter
+        self.clfs = []
+        self.shape_Y = None
+
+    def fit(self,X,y):
+        assert(dim(y)==2)
+        
+        self.shape_Y = shape(y)
+        for i in range(shape(y)[1]):
+            p = self.parameter
+            clf = self.estimator(**p)
+            clf.fit(X,fancy(y,-1,i))
+            self.clfs.append(clf)
+
+    def predict(self,X):
+        R = []
+        for i in range(self.shape_Y):
+            predict = self.clfs[i].predict(X)
+            R.append(predict)
+        return matrix_transpose(R)
+
 
 
 def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -285,6 +361,52 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
 #     return predict,virtual_machine_sum
 
 
+def corrcoef_supoort_ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    # modify @ 2018-03-15 
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
+
+    N = 1
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
+    from load_data import load_data
+    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,argumentation=False,which=[0,2])
+    
+    from preprocessing import normalize
+    X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
+    norm_inv = [0 if x==0 else 1/float(x)for x in norm]
+    X_test = multiply(X_test,norm_inv)
+
+    ridge = Ridge_Single(alpha=1)
+
+    # from utils import corrcoef
+    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(1),weekday_align=None,N=N,argumentation=False,which=[0,1,2])
+    # corrcoef_ = corrcoef(X_train)
+    # from preprocessing import normalize
+    # corrcoef_ = normalize(corrcoef_,norm='l1')
+    # X_train_new = matrix_matmul(X_train,corrcoef_)
+    # X_train = hstack([X_train_new,X_train])
+    # ridge = Ridge_Single(alpha=1)
+    # ridge.fit(X_train,Y_train)
+    # X_test_new = matrix_matmul(X_test,corrcoef_)
+    # X_test = hstack([X_test,X_test_new])
+
+    ridge.fit(X_train,Y_train)
+
+    result = ridge.predict(X_test)[0]
+    result = [0 if r<0 else r for r in result]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+    return predict,virtual_machine_sum
+
+
+
+
 class boosting_estimator(BasePredictor):
     #   return predict,virtual_machine_sum
     pass
@@ -322,6 +444,7 @@ class bagging_estimator(BasePredictor):
                 prediction = plus(prediction,self.clfs[i].predict(X))
         prediction = multiply(prediction,1/float(self.max_clf))
         return prediction
+
 
 # data selection based on model
 def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_size=None,max_iter=100,verbose=False,scoring='score'):
@@ -447,13 +570,6 @@ def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="official",cv=
     return estimator(**max_parameter)
 
 
-
-
-
-
-
-
-
 # add @2018-03-28
 class Smoothing(BasePredictor):
     def __init__(self,weight_decay=0.4):
@@ -482,8 +598,8 @@ class Smoothing(BasePredictor):
 
 class Corrcoef(BasePredictor):
     def __init__(self):
-        BasePredictor.__init__(self)
-        self.weight_decay = weight_decay
+        BasePredictor.__init__(self,corrcoef)
+        self.corrcoef = corrcoef
         self.shape_X = None
         self.shape_Y = None
 
@@ -496,13 +612,10 @@ class Corrcoef(BasePredictor):
         X = X[::-1]
         N = shape(X)[1]
 
-        norm = sum([math.pow(self.weight_decay,k) for k in range(N)])
-        W = [math.pow(self.weight_decay,k)/norm for k in range(N)]
-        W = [W for _ in range(self.shape_Y[-1])]
-        W = matrix_transpose(W)
+        exit()
+
+
         R = []
-        for i in range(shape(X)[0]):
-            R.append(sum(multiply(X[i],W),axis=0))
         return R
 
 class Ridge_Full(BasePredictor):
@@ -567,6 +680,8 @@ def predict_vm(ecs_lines,input_lines):
     # predict_method = predict_flavors_unique_Smoothing_gridsearch
     predict_method = ridge_full
     # predict_method = ridge_single
+
+    # predict_method = corrcoef_supoort_ridge_single
 
 
     if input_lines is None or ecs_lines is None:

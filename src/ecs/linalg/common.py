@@ -269,8 +269,8 @@ def abs(A):
     if type(A)==int or type(A)==float:
         return A if A>=0 else -A
     assert(type(A)==list)
+
     assert(dim(A)==1 or dim(A)==2)
-    import math
     if dim(A)==1:
         return [x if x>=0 else -x for x in A]
     elif dim(A)==2:
@@ -278,7 +278,6 @@ def abs(A):
         for k in range(shape(A)[0]):
             R.append([x if x>=0 else -x for x in A[k]])
         return R
-    return None
 
 def sum(A,axis=None):
     assert(dim(A)==1 or dim(A)==2)

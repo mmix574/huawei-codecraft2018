@@ -49,15 +49,15 @@ class LinearRegression:
         print('loss:',loss)
 
 
-class Lasso:
-    def fit(self,X,y):
-        pass
+# class Lasso:
+#     def fit(self,X,y):
+#         pass
     
-    def predict(self,X):
-        pass
+#     def predict(self,X):
+#         pass
     
-    def score(self,X,y):
-        pass
+#     def score(self,X,y):
+#         pass
 
 from linalg.common import dim,shape,plus,zeros,multiply,mean,sqrt,square,minus
 from linalg.matrix import matrix_inverse,matrix_transpose,matrix_matmul,identity_matrix
@@ -109,12 +109,12 @@ class Ridge:
         print('loss:',loss)
 
         
-class ElasticNet:
-    def fit(self,X,y):
-        pass
+# class ElasticNet:
+#     def fit(self,X,y):
+#         pass
     
-    def predict(self,X):
-        pass
+#     def predict(self,X):
+#         pass
     
-    def score(self,X,y):
-        pass
+#     def score(self,X,y):
+#         pass
