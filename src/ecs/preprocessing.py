@@ -15,7 +15,7 @@ def stdev(X):
 
 # column vector normalize -- axix=1
 # fix bug
-def normalize(X,norm='l2',axis=1,return_norm=False):
+def normalize(X,norm='l2',axis=1,return_norm=False,return_norm_inv=False):
     assert(axis==0 or axis==1)
     assert(norm=='l2' or norm=='l1')
     X_T = matrix_transpose(X)
@@ -47,16 +47,25 @@ def normalize(X,norm='l2',axis=1,return_norm=False):
         
         A = matrix_transpose(A)
 
-    if return_norm:
+    norms_inv = [0 if x==0 else 1/float(x)for x in norms]
+    if return_norm and return_norm_inv:
+        return A,norms,norms_inv
+    elif return_norm:
         return A,norms
+    elif return_norm_inv:
+        return A,norms_inv
     else:
         return A
 
-def minmax():
+# please implement
+def minmax(X,axis=1):
     pass
 
-def standardizing():
+
+# please implement
+def standardizing(X,axis=1):
     pass
+
 
 class Random_Feature:
     def fit(self):
