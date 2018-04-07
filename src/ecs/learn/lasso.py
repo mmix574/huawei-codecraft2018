@@ -1,9 +1,9 @@
-from linalg.common import dim, shape, reshape, ones, zeros
-from linalg.common import minus,plus,sum,dot,square
-from linalg.matrix import matrix_transpose, hstack
-from linalg.matrix import matrix_matmul
-
 import copy
+
+from linalg.common import (dim, dot, minus, ones, plus, reshape, shape, square,
+                           sum, zeros)
+from linalg.matrix import hstack, matrix_matmul, matrix_transpose
+
 
 class Lasso:
     def __init__(self, alpha=1.0, max_iter=1000, fit_intercept=True):
