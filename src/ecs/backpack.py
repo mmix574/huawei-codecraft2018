@@ -68,7 +68,7 @@ def backpack(machine_config,flavors,flavors_unique,predict,is_random=False):
     # print(backpack_list)
     return backpack_list,entity_machine_sum
 
-def backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=3):
+def backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=100):
     assert(k>=0)
     solution_set = []
     solution_set.append(backpack(machine_config,flavors,flavors_unique,predict))

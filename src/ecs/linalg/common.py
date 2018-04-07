@@ -375,8 +375,10 @@ def fancy(*argv):
                 return A
             else:
                 return A[argv[1]]
-        elif type(argv[1])==tuple or type(argv[1])==list:
+        elif type(argv[1])==tuple:
             return [A[i] for i in range(argv[1][0],argv[1][1])]
+        elif type(argv[1])==list:
+            return [A[i] for i in range(len(argv[1])) if argv[1][i]==True]
         else:
             raise Exception            
     else:
@@ -385,7 +387,9 @@ def fancy(*argv):
                 return [fancy(A[i],*argv[2:]) for i in range(shape(A)[0])]
             else:
                 return fancy(A[argv[1]],*argv[2:])
-        elif type(argv[1]==tuple or type(argv[1]==list)):
+        elif type(argv[1])==tuple:
             return [fancy(A[i],*argv[2:]) for i in range(argv[1][0],argv[1][1])]
 
+        elif type(argv[1])==list:
+            return [fancy(A[i],*argv[2:]) for i in range(len(argv[1])) if argv[1][i]==True]
 

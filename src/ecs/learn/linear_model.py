@@ -2,8 +2,9 @@
 from linalg.common import dim,shape,reshape,zeros,ones,sqrt,square
 from linalg.matrix import matrix_inverse,matrix_transpose,matrix_matmul,hstack
 
-class LinearRegression:
 
+# modify to fit one dimension training data
+class LinearRegression:
     def __init__(self,fit_intercept=True):
         self.fit_intercept = fit_intercept
         # self.coef_ = None 
@@ -33,14 +34,16 @@ class LinearRegression:
             bias = ones(m,1)
             X = hstack([bias,X])
         return matrix_matmul(X,self.W)
-        
+
+
+    # !! prepare to remove 
     def score(self,X,y):
         p = self.predict(X)
         p_v = reshape(p,(-1,))
         y_v = reshape(y,(-1,))
         loss = sqrt(mean(square(minus(p_v,y_v))))
         print('loss:',loss)
-        
+    # !! prepare to remove 
     def unfit_score(self,X,y):
         p = matrix_matmul(X,zeros((shape(X)[1],1)))
         p_v = reshape(p,(-1,))
@@ -68,10 +71,11 @@ class Ridge:
         self.alpha = alpha
         self.fit_intercept = fit_intercept
         self.W = None
+        self.dim_Y = None
 
     def fit(self,X,y):
-        self._check(X,y)
-
+        X,y = self._check(X,y)
+        
         if self.fit_intercept:
             m,n = shape(X)
             bias = ones(m,1)
@@ -83,8 +87,12 @@ class Ridge:
         ),X_T),y)
     
     def _check(self,X,y):
-        assert(dim(X)==2 and dim(y)==2)
+        assert((dim(X)==2 and dim(y)==2) or (dim(X)==2 and dim(y)==1))
         assert(shape(X)[0]==shape(y)[0])
+        self.dim_Y = dim(y)
+        if self.dim_Y == 1:
+            y = [[k] for k in y]
+        return X,y
         
     def predict(self,X):
         assert(self.W!=None)
@@ -92,15 +100,19 @@ class Ridge:
             m,n = shape(X)
             bias = ones(m,1)
             X = hstack([bias,X])
-        return matrix_matmul(X,self.W)
+        result = matrix_matmul(X,self.W)
+        if self.dim_Y==1:
+            result = [x[0] for x in result]
+        return result
         
+
+    # prepare to remove 
     def score(self,X,y):
         p = self.predict(X)
         p_v = reshape(p,(-1,))
         y_v = reshape(y,(-1,))
         loss = sqrt(mean(square(minus(p_v,y_v))))
         print('loss:',loss)
-        
     def unfit_score(self,X,y):
         p = matrix_matmul(X,zeros((shape(X)[1],1)))
         p_v = reshape(p,(-1,))
