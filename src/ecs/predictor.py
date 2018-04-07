@@ -285,20 +285,9 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
 #     return predict,virtual_machine_sum
 
 
-class res_estimator:
-    def __init__(self,estimator,parameter,max_clf = 10):
-        self.estimator = estimator
-        self.parameter = parameter
-        self.max_clf = max_clf
-        self.clfs = []
-        
-    def fit(self,X,y,X_val=None,Y_val=None):
-        for i in range(self.max_clf):
-            print(i)
-
-    def predict(self,X):
-        # result = 
-        pass
+class boosting_estimator(BasePredictor):
+    #   return predict,virtual_machine_sum
+    pass
 
 
 class bagging_estimator(BasePredictor):
@@ -334,12 +323,7 @@ class bagging_estimator(BasePredictor):
         prediction = multiply(prediction,1/float(self.max_clf))
         return prediction
 
-
-def boosting_estimator(BasePredictor):
-    #   return predict,virtual_machine_sum
-    pass
-
-
+# data selection based on model
 def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_size=None,max_iter=100,verbose=False,scoring='score'):
     def bagging(X_train,Y_train,bagging_size=None):
         N = shape(X_train)[0]
@@ -382,10 +366,11 @@ def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_si
         X_train,Y_train = best_XY
         return X_train,Y_train
 
+
 # using grid search to tune hyper paramaters
 # estimator: regressor class
 # paramaters = {'w':[0.1,0.2]},paramaters to try
-def grid_search(estimator,paramaters,X,y,verbose=False,scoring="official"):
+def grid_search(estimator,paramaters,X,y,verbose=False,scoring="score"):
     def paramater_gen(paramaters):
         N = len(paramaters)
         from itertools import product
@@ -406,14 +391,14 @@ def grid_search(estimator,paramaters,X,y,verbose=False,scoring="official"):
         if verbose:
             print(p,score,loss)
 
-        assert(scoring == "official" or scoring == "l2loss")
-        if scoring == "official":
+        assert(scoring == "score" or scoring == "loss")
+        if scoring == "score":
             if max_parameter==None or max_score<score:
                 max_parameter = p
                 max_score = score
                 min_loss = loss
                 max_model = clf
-        elif scoring == "l2loss":
+        elif scoring == "loss":
             if max_parameter==None or min_loss>loss:
                 max_parameter = p
                 max_score = score
@@ -460,6 +445,12 @@ def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="official",cv=
     if verbose:
         print(max_parameter)
     return estimator(**max_parameter)
+
+
+
+
+
+
 
 
 
