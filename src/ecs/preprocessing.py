@@ -57,25 +57,14 @@ def normalize(X,norm='l2',axis=1,return_norm=False,return_norm_inv=False):
     else:
         return A
 
-# please implement
-def minmax(X,axis=1):
+def minmax_scaling(X,axis=1):
+
+
     pass
 
 
-# please implement
-def standardizing(X,axis=1):
+def standard_scaling(X,axis=1):
+    
+    
+    
     pass
-
-
-class Random_Feature:
-    def fit(self):
-        pass
-    
-    def fit_transform(self):
-        pass
-    
-    def transform(self):
-        pass
-
-    def inverse_transform(self):
-        pass

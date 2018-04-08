@@ -1,12 +1,8 @@
 from linalg.common import sqrt,mean,square,minus,mean,dim
 
 # vector and matrix supportted
-def l2_loss(y,y_):
+def l2_loss(y,y_,return_losses=False):
     assert(dim(y)<=2 and dim(y_)<=2)
-    # if dim(y) == 2:
-    #     return mean(sqrt(mean(square(minus(y,y_)),axis=0)))
-    # else:
-    #     return sqrt(mean(square(minus(y,y_))))
     def _score_calc(y,y_):
         numerator = sqrt(mean(square(minus(y,y_))))
         return numerator
@@ -14,10 +10,14 @@ def l2_loss(y,y_):
     if dim(y) == 1:
         return _score_calc(y,y_)
     else:
-        return mean([_score_calc(y[i],y_[i]) for i in range(len(y))])
+        losses = [_score_calc(y[i],y_[i]) for i in range(len(y))]
+        if return_losses:
+            return losses
+        else:
+            return mean(losses)
 
 # vector and matrix supportted
-def official_score(y,y_):
+def official_score(y,y_,return_scores=False):
     assert(dim(y)<=2 and dim(y_)<=2)
     def _score_calc(y,y_):
         numerator = sqrt(mean(square(minus(y,y_))))
@@ -29,5 +29,10 @@ def official_score(y,y_):
     if dim(y) == 1:
         return _score_calc(y,y_)
     else:
-        return mean([_score_calc(y[i],y_[i]) for i in range(len(y))])
+        scores = [_score_calc(y[i],y_[i]) for i in range(len(y))]
+        if return_scores:
+
+            return scores
+        else: 
+            return mean(scores)
 

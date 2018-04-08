@@ -169,12 +169,12 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
     X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
     X_test = multiply(X_test,norm_inv)
 
-    clf = grid_search_cv(Ridge_Single,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
-    # clf = Ridge_Single(alpha=1)
+    # clf = grid_search_cv(Ridge_Single,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
+    clf = Ridge_Single(alpha=1)
     clf.fit(X_train,Y_train)    
 
     result = clf.predict(X_test)[0]
-    result = [0 if r<0 else r for r in result]
+    result = [0 if r<0 else r*(predict_days/float(predict_days)) for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
@@ -191,17 +191,13 @@ def corrcoef_supoort_ridge_single(ecs_logs,flavors_unique,training_start_time,tr
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 1
+    N = 3
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
-    from load_data import load_data
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,argumentation=False,which=[0,2])
     
     from preprocessing import normalize
-
     X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
     X_test = multiply(X_test,norm_inv)
-
-    
+        
     ridge = Ridge_Single(alpha=1)
 
     # from utils import corrcoef
@@ -254,46 +250,6 @@ def dynamic_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,
     return predict,virtual_machine_sum
 
 
-
-class dropout_estimator(BasePredictor):
-    def __init__(self,estimator,parameter,drop_out=0.7):
-        self.estimator = estimator
-        self.parameter = parameter
-        self.drop_out = drop_out
-
-        self.shape_X = None
-        self.shape_Y = None
-        self.clf = None
-        self.keep = None
-
-    def fit(self,X,y,keep_hyper=False):
-        assert(dim(y)==1)
-        self.shape_X = shape(X)
-        self.shape_Y = shape(y)
-
-        if not keep_hyper:
-            keep = [True if random.random()>self.drop_out else False for _ in range(shape(X)[1])]
-            self.keep = keep
-            X_ = fancy(X,-1,keep)
-            clf = self.estimator(**(self.parameter))
-            clf.fit(X_,y)
-            self.clf = clf
-        else:
-            keep = self.keep
-            X_ = fancy(X,-1,keep)
-            clf = self.estimator(**(self.parameter))
-            clf.fit(X_,y)
-            self.clf = clf
-
-    def predict(self,X):
-        keep = self.keep
-        X_ = fancy(X,-1,keep)
-        clf = self.clf
-        return clf.predict(X_)
-
-
-
-
 class Ridge_Full(BasePredictor):
     def __init__(self,alpha=1):
         BasePredictor.__init__(self)
@@ -324,7 +280,6 @@ class Ridge_Single(BasePredictor):
         X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
         self.shape_X = shape(X)
         for i in range(shape(y)[1]):
-            # print(i)
 
             clf = Ridge(fit_intercept=True,alpha=self.alpha)
             _X = fancy(X,-1,-1,i)
@@ -347,8 +302,6 @@ class Ridge_Single(BasePredictor):
         R = reshape(prediction,(shape(prediction)[0],-1))
         return matrix_transpose(R)
     
-
-
 class Dynamic_Ridge_Single(BasePredictor):
     def __init__(self,parameters):
         BasePredictor.__init__(self)
@@ -392,13 +345,12 @@ class Dynamic_Ridge_Single(BasePredictor):
 # build output lines
 def predict_vm(ecs_lines,input_lines):
 
-    predict_method = ridge_full
+    # predict_method = ridge_full
     # predict_method = ridge_single
 
     # under development
-    # predict_method = corrcoef_supoort_ridge_single
+    predict_method = corrcoef_supoort_ridge_single
     # predict_method = dynamic_ridge_regression_single
-
 
     if input_lines is None or ecs_lines is None:
         return []
