@@ -183,7 +183,7 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
 
 
 
-def corrcoef_supoort_ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -191,30 +191,51 @@ def corrcoef_supoort_ridge_single(ecs_logs,flavors_unique,training_start_time,tr
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 3
+    N = 1
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
-    
-    from preprocessing import normalize
-    X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
-    X_test = multiply(X_test,norm_inv)
+    corrcoef_of_data = corrcoef(X_train)
+
+
+    def normalize_data(X_train,Y_train,X_test):
+        N = shape(X_train)[0]
+        X = vstack([X_train,X_test])
+        X = normalize(X)
+        X_train = X[:N]
+        X_test = X[N:]
+        return X_train,Y_train,X_test
+    X_train,Y_train,X_test = normalize_data(X_train,Y_train,X_test)
+
+    from linalg.vector import argsort
+    k = 4
+    assert(shape(corrcoef_of_data)[0]>=k)
+    clfs = []
+    indexes = []
+    for i in range(shape(Y_train)[1]):
+        col = corrcoef_of_data[i]
+        col_index_sorted = argsort(col)[::-1]
+        index = col_index_sorted[:k]
+        print(index)
+        indexes.append(index)
+        clf = Ridge(alpha=1)
+        print(shape(X_train))
+        X_ = fancy(X_train,-1,index)
         
-    ridge = Ridge_Single(alpha=1)
 
-    # from utils import corrcoef
-    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(1),weekday_align=None,N=N,argumentation=False,which=[0,1,2])
-    # corrcoef_ = corrcoef(X_train)
-    # from preprocessing import normalize
-    # corrcoef_ = normalize(corrcoef_,norm='l1')
-    # X_train_new = matrix_matmul(X_train,corrcoef_)
-    # X_train = hstack([X_train_new,X_train])
-    # ridge = Ridge_Single(alpha=1)
-    # ridge.fit(X_train,Y_train)
-    # X_test_new = matrix_matmul(X_test,corrcoef_)
-    # X_test = hstack([X_test,X_test_new])
+        print(shape(X_))
 
-    ridge.fit(X_train,Y_train)
+        exit()
+        clf.fit(X_,fancy(Y_train,-1,i))
+        clfs.append(clf)
+    
+    result = []
+    for i in range(shape(Y_train)[1]):
+        X_ = fancy(X_test,-1,indexes[i])
+        p = clfs[i].predict(X_)
+        result.append(p)
 
-    result = ridge.predict(X_test)[0]
+    result = matrix_transpose(result)
+    print(result)
+    exit()
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
@@ -349,7 +370,7 @@ def predict_vm(ecs_lines,input_lines):
     # predict_method = ridge_single
 
     # under development
-    predict_method = corrcoef_supoort_ridge_single
+    predict_method = corrcoef_supoort_ridge
     # predict_method = dynamic_ridge_regression_single
 
     if input_lines is None or ecs_lines is None:

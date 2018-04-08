@@ -4,6 +4,8 @@ from linalg.common import dim,shape,zeros,multiply
 from linalg.common import mean,minus,square,shape,abs,sqrt
 from linalg.matrix import matrix_transpose,matrix_copy
 
+from linalg.common import fancy
+
 def stdev(X):
     # X = matrix_copy(X)
     X_T = matrix_transpose(X)
@@ -58,13 +60,28 @@ def normalize(X,norm='l2',axis=1,return_norm=False,return_norm_inv=False):
         return A
 
 def minmax_scaling(X,axis=1):
-
-
-    pass
-
-
+    assert(axis==1)
+    R = []
+    for j in range(shape(X)[1]):
+        col = fancy(X,-1,j)     
+        max_ = max(col)
+        min_ = min(col)
+        mean_ = mean(col)
+        if max_ - min_==0:
+            R.append(col)
+        else:
+            R.append([(x-mean_)/(max_-min_) for x in col])    
+    return matrix_transpose(R)
+    
 def standard_scaling(X,axis=1):
-    
-    
-    
-    pass
+    R = []
+    for j in range(shape(X)[1]):
+        col = fancy(X,-1,j)     
+        mean_ = mean(col)
+        std = sqrt(mean(square(minus(col,mean_))))
+        if std==0:
+            R.append(col)
+        else:
+            R.append([(x-mean_)/std for x in col])    
+    return matrix_transpose(R)
+

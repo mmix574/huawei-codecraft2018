@@ -378,7 +378,15 @@ def fancy(*argv):
         elif type(argv[1])==tuple:
             return [A[i] for i in range(argv[1][0],argv[1][1])]
         elif type(argv[1])==list:
-            return [A[i] for i in range(len(argv[1])) if argv[1][i]==True]
+            is_bools = True
+            for x in argv:
+                if type(x)!=bool:
+                    is_bools = False
+                    break
+            if is_bools:
+                return [A[i] for i in range(len(argv[1])) if argv[1][i]==True]
+            else:
+                return [A[i] for i in range(len(argv[1])) if i in argv[1]]
         else:
             raise Exception            
     else:
@@ -391,5 +399,15 @@ def fancy(*argv):
             return [fancy(A[i],*argv[2:]) for i in range(argv[1][0],argv[1][1])]
 
         elif type(argv[1])==list:
-            return [fancy(A[i],*argv[2:]) for i in range(len(argv[1])) if argv[1][i]==True]
+            is_bools = True
+            for x in argv:
+                if type(x)!=bool:
+                    is_bools = False
+                    break
+            if is_bools:
+                return [fancy(A[i],*argv[2:]) for i in range(len(argv[1])) if argv[1][i]==True]
+            else:
+                return [fancy(A[i],*argv[2:]) for i in range(len(argv[1])) if i in argv[1]]
 
+        else:
+            raise Exception
