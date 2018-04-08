@@ -1,23 +1,21 @@
 import math
 import random
 import re
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
+
 from backpack import backpack_random_k_times
-from linalg.common import (dim, dot, mean, multiply, reshape, shape, sqrt,
-                           square, zeros,plus,sum,minus)
-from linalg.common import flatten,fancy
-from linalg.matrix import hstack,vstack,matrix_matmul, matrix_transpose, shift,matrix_copy
-from linalg.vector import count_nonezero,arange
-
-from utils import parse_ecs_lines, parse_input_lines
-from utils import corrcoef
-from utils import l2_loss,official_score
-from utils import get_flavors_unique_mapping
-
-from learn.linear_model import LinearRegression,Ridge
 from learn.lasso import Lasso
+from learn.linear_model import LinearRegression, Ridge
+from linalg.common import (dim, dot, fancy, flatten, mean, minus, multiply,
+                           plus, reshape, shape, sqrt, square, sum, zeros)
+from linalg.matrix import (hstack, matrix_copy, matrix_matmul,
+                           matrix_transpose, shift, vstack)
+from linalg.vector import arange, count_nonezero
 
+from utils import (corrcoef, get_flavors_unique_mapping, l2_loss,
+                   official_score, parse_ecs_lines, parse_input_lines)
+
+from model_selection import cross_val_score, grid_search_cv, train_test_split
 from predictions.base import BasePredictor
 from preprocessing import normalize
 
@@ -144,7 +142,7 @@ def predict_flavors_unique_Smoothing_gridsearch(ecs_logs,flavors_unique,training
     # X_train.extend(X_train_old)
     # Y_train.extend(Y_train_old)
     
-    model = grid_search(Smoothing,{"weight_decay":arange(0.1,0.7,200)},X_train,Y_train,verbose=False)
+    model = grid_search_cv(Smoothing,{"weight_decay":arange(0.1,0.7,200)},X_train,Y_train,verbose=False)
     # model = Smoothing(weight_decay=0.73)
     model.fit(X_train,Y_train)
     result = model.predict(X_test)[0]
@@ -205,32 +203,6 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
-
-
-# class Multi_Prediction_Warpper:
-#     def __init__(self,estimator,parameter):
-#         self.estimator = estimator
-#         self.parameter = parameter
-#         self.clfs = []
-#         self.shape_Y = None
-
-#     def fit(self,X,y):
-#         assert(dim(y)==2)
-        
-#         self.shape_Y = shape(y)
-#         for i in range(shape(y)[1]):
-#             p = self.parameter
-#             clf = self.estimator(**p)
-#             clf.fit(X,fancy(y,-1,i))
-#             self.clfs.append(clf)
-
-#     def predict(self,X):
-#         R = []
-#         for i in range(self.shape_Y):
-#             predict = self.clfs[i].predict(X)
-#             R.append(predict)
-#         return matrix_transpose(R)
-
 
 
 def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -324,7 +296,8 @@ def corrcoef_supoort_ridge_single(ecs_logs,flavors_unique,training_start_time,tr
     return predict,virtual_machine_sum
 
 
-def random_feature_selection_ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def dynamic_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -332,29 +305,14 @@ def random_feature_selection_ridge_full(ecs_logs,flavors_unique,training_start_t
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 2
-    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
+    N = 4
+    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
     
-    from preprocessing import normalize
     X_train_raw,norm_inv = normalize(X_train_raw,norm='l1',axis=1,return_norm_inv=True)
     X_test_raw = multiply(X_test_raw,norm_inv)
 
-
-    from model_selection import train_test_split
-
-    X_train,X_Val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
-
-    clf = Ridge_Full(alpha=0.01)
-    clf.fit(X_train,Y_train)
-
-    # from model_selection import cross_val_score,grid_search_cv
-    # clf = grid_search_cv(Ridge_Single,{'alpha':[1,2,3,4,5]},X_train_raw,Y_train_raw,verbose=True)
-
-    # dropout_estimator
-    clf = random_feature_estimator(Ridge_Full,{'alpha':1},drop_out=0.7,max_iter=200)
-    clf.train(X_train,Y_train,X_Val,Y_val)
-    clf.retrain(X_train_raw,Y_train_raw)
-
+    clf = Dynamic_Ridge_Single({"alpha":[0.1,0.01,0.001,1,0.2,2,0.6,0.8,5,3,10]})
+    clf.fit(X_train_raw,Y_train_raw)
 
     result = clf.predict(X_test_raw)[0]
     result = [0 if r<0 else r for r in result]
@@ -363,84 +321,6 @@ def random_feature_selection_ridge_full(ecs_logs,flavors_unique,training_start_t
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
-
-
-
-
-class random_feature_estimator(BasePredictor):
-    def __init__(self,estimator,parameter,max_iter=20,drop_out=0.3,scoring='score'):
-        self.estimator = estimator
-        self.parameter = parameter
-        self.max_iter = max_iter
-        self.drop_out = drop_out
-        self.scoring = scoring
-
-        self.keeps = []
-        self.clfs = []
-        self.shape_Y = None
-
-    def _rand_X(self,X):
-        N = shape(X)[1]
-        keep_length = math.ceil((1-self.drop_out)*N)
-        keep_set = set()
-        while len(keep_set)!=keep_length:
-            i = random.randrange(N)
-            if i not in keep_set:
-                keep_set.add(i)
-        keep = [True if i in keep_set else False for i in range(N)]
-        X_ = fancy(X,-1,keep)
-        return X_,keep
-
-    def _get_keep_X(self,X,keep):
-        return fancy(X,-1,keep)
-
-
-    def train_cv(self,X,y,shuffle=False,cv='full'):
-        assert(type(cv)==int or cv=='full')
-        assert(dim(X)==2 and dim(y)==2)
-        self.shape_Y = shape(y)
-
-
-
-        # pass
-
-    def train(self,X,y,X_val,Y_val):
-        assert(dim(X)==2 and dim(y)==2)
-        self.shape_Y = shape(y)
-
-        for i in range(shape(y)[1]):
-            max_score = None
-            best_clf = None
-            best_keep = None
-            y_ = fancy(y,-1,i)
-            for _ in range(self.max_iter):
-                clf = self.estimator(**(self.parameter))
-                X_,keep = self._rand_X(X)
-                clf.fit(X_,y_)
-                score = clf.score(self._get_keep_X(X_val,keep),fancy(Y_val,-1,i))
-
-                if not max_score or max_score<score:
-                    max_score = score
-                    best_clf = clf
-                    best_keep = keep
-
-            self.keeps.append(best_keep)
-            self.clfs.append(best_clf) 
-
-    def retrain(self,X,y):
-        assert(len(self.keeps)!=0)
-        for i in range(self.shape_Y[1]):
-            X_ = self._get_keep_X(X,self.keeps[i])
-            self.clfs[i].fit(X_,fancy(y,-1,i))
-
-    def predict(self,X):
-        assert(dim(X)==2)
-        result = []
-        for i in range(self.shape_Y[1]):
-            X_ = self._get_keep_X(X,self.keeps[i])
-            result.append(self.clfs[i].predict(X_))
-        return matrix_transpose(result)
-
 
 
 
@@ -482,66 +362,6 @@ class dropout_estimator(BasePredictor):
 
 
 
-class bagging_estimator(BasePredictor):
-    def __init__(self,estimator,parameter,max_clf = 100):
-        self.estimator = estimator
-        self.parameter = parameter
-        self.max_clf = max_clf
-        self.clfs = []
-
-    def bagging(self,X_train,Y_train):
-        N = shape(X_train)[0]
-        index = []
-        for i in range(N):
-            index.append(random.randrange(N))
-        X = [X_train[i] for i in index]
-        y = [Y_train[i] for i in index]
-        return X,y
-    
-    def fit(self,X,y):
-        for i in range(self.max_clf):
-            clf = self.estimator(**self.parameter)
-            _X,_y = self.bagging(X,y)
-            clf.fit(_X,y)
-            self.clfs.append(clf)
-        
-    def predict(self,X):
-        prediction = None
-        for i in range(self.max_clf):
-            if not prediction:
-                prediction = self.clfs[i].predict(X)
-            else:
-                prediction = plus(prediction,self.clfs[i].predict(X))
-        prediction = multiply(prediction,1/float(self.max_clf))
-        return prediction
-
-
-
-# add @2018-03-28
-class Smoothing(BasePredictor):
-    def __init__(self,weight_decay=0.4):
-        BasePredictor.__init__(self)
-        self.weight_decay = weight_decay
-        self.shape_X = None
-        self.shape_Y = None
-
-    def fit(self,X,y):
-        self.shape_X = shape(X)
-        self.shape_Y = shape(y)
-
-    def predict(self,X):
-        X = reshape(X,(shape(X)[0],-1,self.shape_Y[-1]))
-        X = X[::-1]
-        N = shape(X)[1]
-
-        norm = sum([math.pow(self.weight_decay,k) for k in range(N)])
-        W = [math.pow(self.weight_decay,k)/norm for k in range(N)]
-        W = [W for _ in range(self.shape_Y[-1])]
-        W = matrix_transpose(W)
-        R = []
-        for i in range(shape(X)[0]):
-            R.append(sum(multiply(X[i],W),axis=0))
-        return R
 
 class Ridge_Full(BasePredictor):
     def __init__(self,alpha=1):
@@ -599,22 +419,22 @@ class Ridge_Single(BasePredictor):
 
 
 class Dynamic_Ridge_Single(BasePredictor):
-    def __init__(self,alpha=1):
+    def __init__(self,parameters):
         BasePredictor.__init__(self)
         self.clfs = []
-        self.alpha = alpha
+        self.parameter = parameters
         self.shape_X = None
-    
+
     def fit(self,X,y):
         from linalg.common import fancy
         X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
         self.shape_X = shape(X)
         for i in range(shape(y)[1]):
-            # print(i)
-            
-            clf = Ridge(fit_intercept=True,alpha=self.alpha)
+
+            # clf = Ridge(fit_intercept=True,alpha=0.1)
             _X = fancy(X,-1,-1,i)
             _y = fancy(y,-1,(i,i+1))
+            clf = grid_search_cv(Ridge,{'fit_intercept':[True,False],'alpha':[x for x in range(1,100)]},_X,_y,verbose=False)
             
             clf.fit(_X,_y)
             self.clfs.append(clf)
@@ -636,6 +456,7 @@ class Dynamic_Ridge_Single(BasePredictor):
 
 
 
+
 # build output lines
 def predict_vm(ecs_lines,input_lines):
 
@@ -643,10 +464,9 @@ def predict_vm(ecs_lines,input_lines):
     # predict_method = ridge_full
     # predict_method = ridge_single
 
+    # under development
     # predict_method = corrcoef_supoort_ridge_single
-
-    predict_method = random_feature_selection_ridge_full
-
+    predict_method = dynamic_ridge_regression_single
 
 
     if input_lines is None or ecs_lines is None:
@@ -683,5 +503,3 @@ def predict_vm(ecs_lines,input_lines):
 
     # print(result)
     return result
-
-

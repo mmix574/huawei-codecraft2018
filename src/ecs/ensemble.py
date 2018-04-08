@@ -1,5 +1,42 @@
 import random
 from linalg.common import shape
+from linalg.common import multiply,plus
+
+
+class bagging_estimator(BasePredictor):
+    def __init__(self,estimator,parameter,max_clf = 100):
+        self.estimator = estimator
+        self.parameter = parameter
+        self.max_clf = max_clf
+        self.clfs = []
+
+    def bagging(self,X_train,Y_train):
+        N = shape(X_train)[0]
+        index = []
+        for i in range(N):
+            index.append(random.randrange(N))
+        X = [X_train[i] for i in index]
+        y = [Y_train[i] for i in index]
+        return X,y
+    
+    def fit(self,X,y):
+        for i in range(self.max_clf):
+            clf = self.estimator(**self.parameter)
+            _X,_y = self.bagging(X,y)
+            clf.fit(_X,y)
+            self.clfs.append(clf)
+        
+    def predict(self,X):
+        prediction = None
+        for i in range(self.max_clf):
+            if not prediction:
+                prediction = self.clfs[i].predict(X)
+            else:
+                prediction = plus(prediction,self.clfs[i].predict(X))
+        prediction = multiply(prediction,1/float(self.max_clf))
+        return prediction
+
+
 # closed 
 # data selection based on model
 def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_size=None,max_iter=100,verbose=False,scoring='score'):

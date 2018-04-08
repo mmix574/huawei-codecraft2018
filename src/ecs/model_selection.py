@@ -2,6 +2,7 @@ import random
 import copy
 from linalg.common import shape,mean
 from linalg.matrix import vstack
+from metrics import official_score
 
 def shuffle(X,y=None,random_state=None):
     if random_state != None:
@@ -88,7 +89,11 @@ def cross_val_score(estimator_instance,X,y,shuffle=False,cv='full',scoring='scor
 
         X_val,Y_val = X[s:e],y[s:e]
         estimator_instance.fit(X_train,Y_train)
-        score = estimator_instance.score(X_val,Y_val)
+        
+        predict = estimator_instance.predict(X_val) 
+        score = official_score(predict,Y_val)
+
+        # score = estimator_instance.score(X_val,Y_val)
         scores.append(score)
     
     if return_mean:
@@ -98,7 +103,7 @@ def cross_val_score(estimator_instance,X,y,shuffle=False,cv='full',scoring='scor
 
 
 # support for score only
-def grid_search_cv(estimator,paramaters,X,y,shuffle=False,cv='full',scoring='score',random_state=None,verbose=False):
+def grid_search_cv(estimator,paramaters,X,y,shuffle=False,cv='full',scoring='score',random_state=None,verbose=False,return_parameter=False):
     def paramater_gen(paramaters):
         N = len(paramaters)
         from itertools import product
@@ -121,8 +126,12 @@ def grid_search_cv(estimator,paramaters,X,y,shuffle=False,cv='full',scoring='sco
                 max_parameter = p
                 max_score = score
                 max_model = clf
-        if verbose:
-            print(max_parameter)
-    return max_model
+    if verbose:
+        print(max_parameter)
+
+    if return_parameter:
+        return max_model,max_parameter
+    else:
+        return max_model
 
 
