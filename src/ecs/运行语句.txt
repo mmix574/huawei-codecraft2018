@@ -24,3 +24,28 @@ python evaluate.py test
 C:/python27/python.exe evaluate_TestData_2015.2.20_2015.2.27_TrainData_2015.1.1_2015.2.19.py
 
 
+# def template(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+#     # modify @ 2018-03-15 
+#     predict = {}.fromkeys(flavors_unique)
+#     for f in flavors_unique:
+#         predict[f] = 0
+#     virtual_machine_sum = 0
+#     mapping_index = get_flavors_unique_mapping(flavors_unique)
+#     predict_days = (predict_end_time-predict_start_time).days
+#     N = 3
+#     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,get_flatten=True)
+#     from load_data import load_data
+#     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,argumentation=False,which=[0,2],get_flatten=True)
+#     # from preprocessing import normalize
+#     # X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
+#     # norm_inv = [0 if x==0 else 1/float(x)for x in norm]
+#     # X_test = multiply(X_test,norm_inv)
+#     ridge = Ridge_Single(alpha=1)
+#     ridge.fit(X_train,Y_train)
+#     result = ridge.predict(X_test)[0]
+#     result = [0 if r<0 else r for r in result]
+#     for f in flavors_unique:
+#         p = result[mapping_index[f]]
+#         predict[f] = int(round(p))
+#         virtual_machine_sum += int(round(p))
+#     return predict,virtual_machine_sum

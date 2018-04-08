@@ -127,7 +127,6 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
 
 
 def predict_flavors_unique_Smoothing_gridsearch(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -157,7 +156,6 @@ def predict_flavors_unique_Smoothing_gridsearch(ecs_logs,flavors_unique,training
 
 
 def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -236,7 +234,6 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
 
 
 def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -280,35 +277,10 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
     return predict,virtual_machine_sum
 
 
-# def template(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-#     # modify @ 2018-03-15 
-#     predict = {}.fromkeys(flavors_unique)
-#     for f in flavors_unique:
-#         predict[f] = 0
-#     virtual_machine_sum = 0
-#     mapping_index = get_flavors_unique_mapping(flavors_unique)
-#     predict_days = (predict_end_time-predict_start_time).days
-#     N = 3
-#     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,get_flatten=True)
-#     from load_data import load_data
-#     X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,argumentation=False,which=[0,2],get_flatten=True)
-#     # from preprocessing import normalize
-#     # X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
-#     # norm_inv = [0 if x==0 else 1/float(x)for x in norm]
-#     # X_test = multiply(X_test,norm_inv)
-#     ridge = Ridge_Single(alpha=1)
-#     ridge.fit(X_train,Y_train)
-#     result = ridge.predict(X_test)[0]
-#     result = [0 if r<0 else r for r in result]
-#     for f in flavors_unique:
-#         p = result[mapping_index[f]]
-#         predict[f] = int(round(p))
-#         virtual_machine_sum += int(round(p))
-#     return predict,virtual_machine_sum
+
 
 
 def corrcoef_supoort_ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    # modify @ 2018-03-15 
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -361,34 +333,30 @@ def random_feature_selection_ridge_full(ecs_logs,flavors_unique,training_start_t
     predict_days = (predict_end_time-predict_start_time).days
 
     N = 1
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
+    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
     
-    from load_data import load_data
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,argumentation=True,which=[0,2])
-
     from preprocessing import normalize
-    X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
-    X_test = multiply(X_test,norm_inv)
+    X_train_raw,norm_inv = normalize(X_train_raw,norm='l1',axis=1,return_norm_inv=True)
+    X_test_raw = multiply(X_test_raw,norm_inv)
 
-    X_train_old = multiply(X_train_old,norm_inv)
 
-    # X_train.extend(X_train_old)
-    # Y_train.extend(Y_train_old)
+    from model_selection import train_test_split
 
-    ridge = Ridge_Full(alpha=0.01)
+    X_train,X_Val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
+
+    ridge = Ridge_Full(alpha=1)
     ridge.fit(X_train,Y_train)
 
-    # clf = bagging_estimator(Ridge_Single,{'alpha':1},max_clf=100)
-    # clf.fit(X_train_old,Y_train_old)
-    # print(clf.score(X_train,Y_train))
+    
+    # # dropout_estimator
+    rfe = random_feature_estimator(Ridge_Full,{'alpha':1},drop_out=0.6,max_iter=20)
+    rfe.train(X_train,Y_train,X_Val,Y_val)
+    rfe.retrain(X_train_raw,Y_train_raw)
+    # print(rfe.keeps)
 
-    drop_es = dropout_estimator(Ridge_Full,{'alpha':1},drop_out=0.6)
-    drop_es.fit(X_train,fancy(Y_train,-1,0))
+    result = rfe.predict(X_test_raw)[0]
     
-    # print(drop_es.score(X_train,Y_train))
-    
-    result = drop_es.predict(X_test)[0]
-    # result = clf.predict(X_test)[0]
+    # result = ridge.predict(X_test)[0]
 
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
@@ -396,6 +364,85 @@ def random_feature_selection_ridge_full(ecs_logs,flavors_unique,training_start_t
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
+
+
+class random_feature_estimator(BasePredictor):
+    def __init__(self,estimator,parameter,max_iter=20,drop_out=0.3,scoring='score'):
+        self.estimator = estimator
+        self.parameter = parameter
+        self.max_iter = max_iter
+        self.drop_out = drop_out
+        self.scoring = scoring
+
+        self.keeps = []
+        self.clfs = []
+        self.shape_Y = None
+
+    def _rand_X(self,X):
+        N = shape(X)[1]
+        keep_length = math.ceil((1-self.drop_out)*N)
+        keep_set = set()
+        while len(keep_set)!=keep_length:
+            i = random.randrange(N)
+            if i not in keep_set:
+                keep_set.add(i)
+        keep = [True if i in keep_set else False for i in range(N)]
+        X_ = fancy(X,-1,keep)
+        return X_,keep
+
+    def _get_keep_X(self,X,keep):
+        return fancy(X,-1,keep)
+
+
+    def train_cv(self,X,y,shuffle=False,cv='full'):
+        assert(type(cv)==int or cv=='full')
+        assert(dim(X)==2 and dim(y)==2)
+        self.shape_Y = shape(y)
+
+
+
+        # pass
+
+    def train(self,X,y,X_val,Y_val):
+        assert(dim(X)==2 and dim(y)==2)
+        self.shape_Y = shape(y)
+
+        for i in range(shape(y)[1]):
+            max_score = None
+            best_clf = None
+            best_keep = None
+            y_ = fancy(y,-1,i)
+            for _ in range(self.max_iter):
+                clf = self.estimator(**(self.parameter))
+                X_,keep = self._rand_X(X)
+                clf.fit(X_,y_)
+                score = clf.score(self._get_keep_X(X_val,keep),fancy(Y_val,-1,i))
+
+                if not max_score or max_score<score:
+                    max_score = score
+                    best_clf = clf
+                    best_keep = keep
+
+            self.keeps.append(best_keep)
+            self.clfs.append(best_clf) 
+
+    def retrain(self,X,y):
+        assert(len(self.keeps)!=0)
+        for i in range(self.shape_Y[1]):
+            X_ = self._get_keep_X(X,self.keeps[i])
+            self.clfs[i].fit(X_,fancy(y,-1,i))
+
+    def predict(self,X):
+        assert(dim(X)==2)
+        result = []
+        for i in range(self.shape_Y[1]):
+            X_ = self._get_keep_X(X,self.keeps[i])
+            result.append(self.clfs[i].predict(X_))
+        return matrix_transpose(result)
+
+
+
+
 
 
 class dropout_estimator(BasePredictor):
@@ -409,12 +456,12 @@ class dropout_estimator(BasePredictor):
         self.clf = None
         self.keep = None
 
-    def fit(self,X,y,is_random=True):
+    def fit(self,X,y,keep_hyper=False):
         assert(dim(y)==1)
         self.shape_X = shape(X)
         self.shape_Y = shape(y)
 
-        if is_random:
+        if not keep_hyper:
             keep = [True if random.random()>self.drop_out else False for _ in range(shape(X)[1])]
             self.keep = keep
             X_ = fancy(X,-1,keep)
@@ -433,7 +480,8 @@ class dropout_estimator(BasePredictor):
         X_ = fancy(X,-1,keep)
         clf = self.clf
         return clf.predict(X_)
-        
+
+
 
 
 class boosting_estimator(BasePredictor):
@@ -564,7 +612,7 @@ def grid_search(estimator,paramaters,X,y,verbose=False,scoring="score"):
 
 # using grid search with cross validatin to tune hyper paramaters
 # add @ 2018-04-05
-def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="official",cv=None):
+def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="score"):
     def paramater_gen(paramaters):
         N = len(paramaters)
         from itertools import product
@@ -572,6 +620,7 @@ def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="official",cv=
         for v in value:
             yield dict(zip(paramaters.keys(),v))
 
+    max_model = None
     max_parameter = None
     max_score = None
     min_loss = None
@@ -584,20 +633,22 @@ def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="official",cv=
         if verbose:
             print(p,score,loss)
 
-        assert(scoring == "official" or scoring == "l2loss")
-        if scoring == "official":
+        assert(scoring == "score" or scoring == "loss")
+        if scoring == "score":
             if max_parameter==None or max_score<score:
                 max_parameter = p
                 max_score = score
                 min_loss = loss
-        elif scoring == "l2loss":
+                max_model = clf
+        elif scoring == "loss":
             if max_parameter==None or min_loss>loss:
                 max_parameter = p
                 max_score = score
                 min_loss = loss
+                max_model = clf
     if verbose:
         print(max_parameter)
-    return estimator(**max_parameter)
+    return max_model
 
 
 
