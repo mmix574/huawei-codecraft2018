@@ -123,36 +123,6 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return X_train,Y_train,X_test 
 
 
-
-def predict_flavors_unique_Smoothing_gridsearch(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    predict = {}.fromkeys(flavors_unique)
-    for f in flavors_unique:
-        predict[f] = 0
-    virtual_machine_sum = 0
-
-    mapping_index = get_flavors_unique_mapping(flavors_unique)
-    predict_days = (predict_end_time-predict_start_time).days
-    
-    N = 3
-    # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=True,argumentation=True)
-    
-    # from load_data import load_data
-    # X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=None,N=N,get_flatten=True,argumentation=False,which=[0,1])
-    # X_train.extend(X_train_old)
-    # Y_train.extend(Y_train_old)
-    
-    model = grid_search_cv(Smoothing,{"weight_decay":arange(0.1,0.7,200)},X_train,Y_train,verbose=False)
-    # model = Smoothing(weight_decay=0.73)
-    model.fit(X_train,Y_train)
-    result = model.predict(X_test)[0]
-    for f in flavors_unique:
-        p = result[mapping_index[f]]
-        predict[f] = int(round(p))
-        virtual_machine_sum += int(round(p))
-    return predict,virtual_machine_sum
-
-
 def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -162,41 +132,18 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 3
-    get_flatten = True
-      # with argumentation
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,get_flatten=get_flatten,argumentation=True)
+    N = 1
 
-    # X_train.extend(X_train)
-    # Y_train.extend(Y_train)
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,get_flatten=True)
 
-    from load_data import load_data
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,get_flatten=get_flatten,argumentation=False,which=[0,2])
+    from preprocessing import normalize
+    X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
+    X_test = multiply(X_test,norm_inv)
 
-    # X_train.extend(X_train_old)
-    # Y_train.extend(Y_train_old)
+    clf = grid_search_cv(Ridge_Single,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
+    clf.fit(X_train,Y_train)    
 
-    # X_new = vstack([X_train,X_train_old])
-    # Y_new = vstack([Y_train,Y_train_old])
-    # _,norm_X = normalize(X_new,norm='l1',axis=1,return_norm=True)
-    # norm_inv_X = [0 if x==0 else 1/float(x)for x in norm_X]
-    # _,norm_Y = normalize(Y_new,norm='l1',axis=1,return_norm=True)
-    # norm_inv_Y = [0 if x==0 else 1/float(x)for x in norm_Y]
-    # X_train = multiply(X_train,norm_inv_X)
-    # X_train_old = multiply(X_train_old,norm_inv_X)
-
-    # Y_train = multiply(Y_train,norm_inv_Y)
-    # Y_train_old = multiply(Y_train_old,norm_inv_Y)
-
-    X_train,norm_X = normalize(X_train,norm='l1',axis=1,return_norm=True)
-    norm_inv_X = [0 if x==0 else 1/float(x)for x in norm_X]
-    X_test = multiply(X_test,norm_inv_X)
-
-    ridge = Ridge_Full(alpha=1)
-    ridge.fit(X_train,Y_train)
-    result = ridge.predict(X_test)[0]
-
-
+    result = clf.predict(X_test)[0]
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
@@ -214,41 +161,25 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 4
+    N = 5
 
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,get_flatten=True)
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,get_flatten=True)
 
-    from load_data import load_data
-    X_train_old,Y_train_old = load_data(flavors_unique,frequency='{}d'.format(predict_days),weekday_align=predict_end_time,N=N,argumentation=False,which=[0,2],get_flatten=True)
-    
+    from preprocessing import normalize
+    X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
+    X_test = multiply(X_test,norm_inv)
 
-    # from preprocessing import normalize
-    # X_train,norm = normalize(X_train,norm='l1',axis=1,return_norm=True)
-    # norm_inv = [0 if x==0 else 1/float(x)for x in norm]
-    # X_test = multiply(X_test,norm_inv)
+    clf = grid_search_cv(Ridge_Single,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
+    # clf = Ridge_Single(alpha=1)
+    clf.fit(X_train,Y_train)    
 
-    ridge = Ridge_Single(alpha=1)
-    ees = bagging_estimator(Ridge_Single,{'alpha':1},max_clf=1000)
-
-    # X,y = bagging_with_model(ees,X_train_old,Y_train_old,X_train,Y_train,max_iter=1000,scoring='score')
-    # X.extend(X_train)
-    # y.extend(Y_train)
-
-    ees.fit(X_train,Y_train)
-    # ridge.fit(X_train,Y_train)
-    
-    result = ees.predict(X_test)[0]
-    # result = ridge.predict(X_test)[0]
-
+    result = clf.predict(X_test)[0]
     result = [0 if r<0 else r for r in result]
-    # result = model.predict(X_test)[0]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
-
-
 
 
 
@@ -305,8 +236,8 @@ def dynamic_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 4
-    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
+    N = 3
+    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=False)
     
     X_train_raw,norm_inv = normalize(X_train_raw,norm='l1',axis=1,return_norm_inv=True)
     X_test_raw = multiply(X_test_raw,norm_inv)
@@ -434,7 +365,10 @@ class Dynamic_Ridge_Single(BasePredictor):
             # clf = Ridge(fit_intercept=True,alpha=0.1)
             _X = fancy(X,-1,-1,i)
             _y = fancy(y,-1,(i,i+1))
-            clf = grid_search_cv(Ridge,{'fit_intercept':[True,False],'alpha':[x for x in range(1,100)]},_X,_y,verbose=False)
+            alpha_range = []
+            alpha_range.extend(arange(0.0001,0.1,10))
+            alpha_range.extend(arange(1,10,5))
+            clf = grid_search_cv(Ridge,{'fit_intercept':[True,False],'alpha':alpha_range},_X,_y,verbose=False)
             
             clf.fit(_X,_y)
             self.clfs.append(clf)
@@ -455,18 +389,15 @@ class Dynamic_Ridge_Single(BasePredictor):
 
 
 
-
-
 # build output lines
 def predict_vm(ecs_lines,input_lines):
 
-    # predict_method = predict_flavors_unique_Smoothing_gridsearch
-    # predict_method = ridge_full
+    predict_method = ridge_full
     # predict_method = ridge_single
 
     # under development
     # predict_method = corrcoef_supoort_ridge_single
-    predict_method = dynamic_ridge_regression_single
+    # predict_method = dynamic_ridge_regression_single
 
 
     if input_lines is None or ecs_lines is None:
