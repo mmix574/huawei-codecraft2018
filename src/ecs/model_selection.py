@@ -1,6 +1,7 @@
 import random
 import copy
-from linalg.common import shape
+from linalg.common import shape,mean
+from linalg.matrix import vstack
 
 def shuffle(X,y=None,random_state=None):
     if random_state != None:
@@ -62,16 +63,66 @@ def train_test_split(X,y,test_size=0.2,random_state=None,align=None):
 
     return X_train,X_test,Y_train,Y_test
 
-# todo
-def cross_val_score(estimator_instance,X,y,shuffle=False,cv='full',scoring='score',random_state=None):
+def cross_val_score(estimator_instance,X,y,shuffle=False,cv='full',scoring='score',random_state=None,return_mean=False):
     assert((type(cv)==int and cv>1)or cv=='full')
     if type(cv)==int:
-        
-        pass
+        assert(cv<len(X))
     if shuffle:
         X,y = shuffle(X,y=y,random_state=random_state)
     N = len(X)
     K = N if cv=='full' else cv
 
+    h = len(X)/float(K)
+
+    scores = []
+
+    for i in range(K):
+        s = int(round((i*h)))
+        e = int(round((i+1)*h))
+
+        X_train,Y_train = [],[]
+        X_train.extend(X[:s])
+        X_train.extend(X[e:])
+        Y_train.extend(y[:s])
+        Y_train.extend(y[e:])
+
+        X_val,Y_val = X[s:e],y[s:e]
+        estimator_instance.fit(X_train,Y_train)
+        score = estimator_instance.score(X_val,Y_val)
+        scores.append(score)
+    
+    if return_mean:
+        return mean(scores)
+    else:
+        return scores
+
+
+# support for score only
+def grid_search_cv(estimator,paramaters,X,y,shuffle=False,cv='full',scoring='score',random_state=None,verbose=False):
+    def paramater_gen(paramaters):
+        N = len(paramaters)
+        from itertools import product
+        value = list(product(*paramaters.values()))
+        for v in value:
+            yield dict(zip(paramaters.keys(),v))
+
+    max_model = None
+    max_parameter = None
+    max_score = None
+
+    for p in paramater_gen(paramaters):
+        clf = estimator(**p)
+        clf.fit(X,y)
+        score = cross_val_score(clf,X,y,return_mean=True,shuffle=shuffle,cv=cv,scoring=scoring,random_state=random_state) 
+        # clf.score(X,y)
+
+        if scoring == "score":
+            if max_parameter==None or max_score<score:
+                max_parameter = p
+                max_score = score
+                max_model = clf
+        if verbose:
+            print(max_parameter)
+    return max_model
 
 

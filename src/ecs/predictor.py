@@ -332,7 +332,7 @@ def random_feature_selection_ridge_full(ecs_logs,flavors_unique,training_start_t
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 1
+    N = 2
     X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
     
     from preprocessing import normalize
@@ -344,26 +344,27 @@ def random_feature_selection_ridge_full(ecs_logs,flavors_unique,training_start_t
 
     X_train,X_Val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
 
-    ridge = Ridge_Full(alpha=1)
-    ridge.fit(X_train,Y_train)
+    clf = Ridge_Full(alpha=0.01)
+    clf.fit(X_train,Y_train)
 
-    
-    # # dropout_estimator
-    rfe = random_feature_estimator(Ridge_Full,{'alpha':1},drop_out=0.6,max_iter=20)
-    rfe.train(X_train,Y_train,X_Val,Y_val)
-    rfe.retrain(X_train_raw,Y_train_raw)
-    # print(rfe.keeps)
+    # from model_selection import cross_val_score,grid_search_cv
+    # clf = grid_search_cv(Ridge_Single,{'alpha':[1,2,3,4,5]},X_train_raw,Y_train_raw,verbose=True)
 
-    result = rfe.predict(X_test_raw)[0]
-    
-    # result = ridge.predict(X_test)[0]
+    # dropout_estimator
+    clf = random_feature_estimator(Ridge_Full,{'alpha':1},drop_out=0.7,max_iter=200)
+    clf.train(X_train,Y_train,X_Val,Y_val)
+    clf.retrain(X_train_raw,Y_train_raw)
 
+
+    result = clf.predict(X_test_raw)[0]
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
+
+
 
 
 class random_feature_estimator(BasePredictor):
@@ -443,8 +444,6 @@ class random_feature_estimator(BasePredictor):
 
 
 
-
-
 class dropout_estimator(BasePredictor):
     def __init__(self,estimator,parameter,drop_out=0.7):
         self.estimator = estimator
@@ -483,12 +482,6 @@ class dropout_estimator(BasePredictor):
 
 
 
-
-class boosting_estimator(BasePredictor):
-    #   return predict,virtual_machine_sum
-    pass
-
-
 class bagging_estimator(BasePredictor):
     def __init__(self,estimator,parameter,max_clf = 100):
         self.estimator = estimator
@@ -521,134 +514,6 @@ class bagging_estimator(BasePredictor):
                 prediction = plus(prediction,self.clfs[i].predict(X))
         prediction = multiply(prediction,1/float(self.max_clf))
         return prediction
-
-
-
-# data selection based on model
-def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_size=None,max_iter=100,verbose=False,scoring='score'):
-    def bagging(X_train,Y_train,bagging_size=None):
-        N = shape(X_train)[0]
-        if bagging_size!=None:
-            N = bagging_size
-        index = []
-        for i in range(N):
-            index.append(random.randrange(N))
-        X = [X_train[i] for i in index]
-        y = [Y_train[i] for i in index]
-        return X,y
-    assert(scoring=='loss' or scoring=='score')
-    if scoring=='score':
-        max_score = None
-        best_XY = None
-        for i in range(max_iter):
-            X,y = bagging(X_train,Y_train,bagging_size=bagging_size)
-            regressor_instance.fit(X,y)
-            score = regressor_instance.score(X_val,Y_val)
-            if not max_score or score>max_score:
-                if verbose:
-                    print(score)
-                score =  max_score
-                best_XY = (X,y)
-        
-        X_train,Y_train = best_XY
-        return X_train,Y_train
-    elif scoring=='loss':
-        min_loss = None
-        best_XY = None
-        for i in range(max_iter):
-            X,y = bagging(X_train,Y_train,bagging_size=bagging_size)
-            regressor_instance.fit(X,y)
-            loss = regressor_instance.loss(X_val,Y_val)
-            if not min_loss or loss<min_loss:
-                if verbose:
-                    print(loss)
-                min_loss =  loss
-                best_XY = (X,y)
-        X_train,Y_train = best_XY
-        return X_train,Y_train
-
-
-# using grid search to tune hyper paramaters
-# estimator: regressor class
-# paramaters = {'w':[0.1,0.2]},paramaters to try
-def grid_search(estimator,paramaters,X,y,verbose=False,scoring="score"):
-    def paramater_gen(paramaters):
-        N = len(paramaters)
-        from itertools import product
-        value = list(product(*paramaters.values()))
-        for v in value:
-            yield dict(zip(paramaters.keys(),v))
-
-    max_model = None
-    max_parameter = None
-    max_score = None
-    min_loss = None
-    for p in paramater_gen(paramaters):
-        clf = estimator(**p)
-        clf.fit(X,y)
-        score = clf.score(X,y)
-        loss = clf.loss(X,y)
-
-        if verbose:
-            print(p,score,loss)
-
-        assert(scoring == "score" or scoring == "loss")
-        if scoring == "score":
-            if max_parameter==None or max_score<score:
-                max_parameter = p
-                max_score = score
-                min_loss = loss
-                max_model = clf
-        elif scoring == "loss":
-            if max_parameter==None or min_loss>loss:
-                max_parameter = p
-                max_score = score
-                min_loss = loss
-                max_model = clf
-    if verbose:
-        print(max_parameter)
-    return max_model
-
-
-# using grid search with cross validatin to tune hyper paramaters
-# add @ 2018-04-05
-def grid_search_cv(estimator,paramaters,X,y,verbose=False,scoring="score"):
-    def paramater_gen(paramaters):
-        N = len(paramaters)
-        from itertools import product
-        value = list(product(*paramaters.values()))
-        for v in value:
-            yield dict(zip(paramaters.keys(),v))
-
-    max_model = None
-    max_parameter = None
-    max_score = None
-    min_loss = None
-    for p in paramater_gen(paramaters):
-        clf = estimator(**p)
-        clf.fit(X,y)
-        score = clf.score(X,y)
-        loss = clf.loss(X,y)
-
-        if verbose:
-            print(p,score,loss)
-
-        assert(scoring == "score" or scoring == "loss")
-        if scoring == "score":
-            if max_parameter==None or max_score<score:
-                max_parameter = p
-                max_score = score
-                min_loss = loss
-                max_model = clf
-        elif scoring == "loss":
-            if max_parameter==None or min_loss>loss:
-                max_parameter = p
-                max_score = score
-                min_loss = loss
-                max_model = clf
-    if verbose:
-        print(max_parameter)
-    return max_model
 
 
 
@@ -731,6 +596,45 @@ class Ridge_Single(BasePredictor):
         R = reshape(prediction,(shape(prediction)[0],-1))
         return matrix_transpose(R)
     
+
+
+class Dynamic_Ridge_Single(BasePredictor):
+    def __init__(self,alpha=1):
+        BasePredictor.__init__(self)
+        self.clfs = []
+        self.alpha = alpha
+        self.shape_X = None
+    
+    def fit(self,X,y):
+        from linalg.common import fancy
+        X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
+        self.shape_X = shape(X)
+        for i in range(shape(y)[1]):
+            # print(i)
+            
+            clf = Ridge(fit_intercept=True,alpha=self.alpha)
+            _X = fancy(X,-1,-1,i)
+            _y = fancy(y,-1,(i,i+1))
+            
+            clf.fit(_X,_y)
+            self.clfs.append(clf)
+
+    def predict(self,X):
+        prediction = []
+        from linalg.common import fancy
+        s = list(self.shape_X)
+        s[0] = -1
+        X = reshape(X,s)
+        for i in range(self.shape_X[-1]):
+            clf = self.clfs[i]
+            _X = fancy(X,-1,-1,i)
+            p = clf.predict(_X)
+            prediction.append(p)
+        R = reshape(prediction,(shape(prediction)[0],-1))
+        return matrix_transpose(R)
+
+
+
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
