@@ -1,6 +1,24 @@
 import random
-
+import copy
 from linalg.common import shape
+
+def shuffle(X,y=None,random_state=None):
+    if random_state != None:
+        random.seed(random_state)
+    new_X = []
+    new_Y = []
+    index = list(range(len(X)))
+    while(len(index)!=0):
+        i = random.choice(index)
+        new_X.append(X[i])
+        if y != None:
+            new_Y.append(y[i])
+        index.remove(i)
+
+    if y!=None:
+        return new_X,new_Y
+    else:
+        return new_X
 
 # add @ 2018-04-08
 def train_test_split(X,y,test_size=0.2,random_state=None,align=None):
@@ -44,9 +62,16 @@ def train_test_split(X,y,test_size=0.2,random_state=None,align=None):
 
     return X_train,X_test,Y_train,Y_test
 
+# todo
+def cross_val_score(estimator_instance,X,y,shuffle=False,cv='full',scoring='score',random_state=None):
+    assert((type(cv)==int and cv>1)or cv=='full')
+    if type(cv)==int:
+        
+        pass
+    if shuffle:
+        X,y = shuffle(X,y=y,random_state=random_state)
+    N = len(X)
+    K = N if cv=='full' else cv
 
 
-def cross_val_score(estimator_instance,X,y,shuffle=False,cv='full',scoring='score'):
-    
 
-    pass
