@@ -107,6 +107,4 @@ def maximize_score_backpack(machine_config,optimized,flavors,flavors_unique,pred
             m[i] = 0
         em = dict(m)
         return em
-
-
     # return backpack_list,entity_machine_sum
