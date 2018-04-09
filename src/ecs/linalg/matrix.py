@@ -304,7 +304,39 @@ def shift(A,shift_step):
                     R[i][j] = None
     return R
 
-def load(path):
-    import os
-    assert(os.path.exists(path))
-    
+
+from common import mean,multiply,sqrt,square
+# column vector corrcoef
+def corrcoef(A):
+    assert(dim(A)==2)
+    m,n = shape(A)
+    def _corr(A,i,j):
+        assert(dim(A)==2)
+        m,n = shape(A)
+        A_T = matrix_transpose(A)
+        
+        X,Y = A_T[i],A_T[j] # X,Y = col(A,i),col(A,j)
+
+        mean_X,mean_Y = mean(X),mean(Y)
+        X_ = [k-mean_X for k in X]
+        Y_ = [k-mean_Y for k in Y]
+        numerator = mean(multiply(X_,Y_))
+        # print(sqrt(mean(square(X_))))
+
+        denominator = sqrt(mean(square(X_)))*sqrt(mean(square(Y_)))
+        if denominator == 0:
+            return 0
+        else:
+            r = (numerator)/(denominator)
+            return r
+
+    R = zeros((n,n))
+    for i in range(n):
+        for j in range(n):
+            if i==j:
+                R[i][j] = 1
+            elif i>j:
+                R[i][j] = R[j][i]
+            else:
+                R[i][j] = _corr(A,i,j)
+    return R

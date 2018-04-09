@@ -12,8 +12,10 @@ from linalg.matrix import (hstack, matrix_copy, matrix_matmul,
                            matrix_transpose, shift, vstack)
 from linalg.vector import arange, count_nonezero
 
-from utils import (corrcoef, get_flavors_unique_mapping, l2_loss,
-                   official_score, parse_ecs_lines, parse_input_lines)
+from utils import (get_flavors_unique_mapping,parse_ecs_lines, parse_input_lines)
+
+from metrics import l2_loss,official_score
+from linalg.matrix import corrcoef
 
 from model_selection import cross_val_score, grid_search_cv, train_test_split
 from predictions.base import BasePredictor
@@ -192,10 +194,10 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
     predict_days = (predict_end_time-predict_start_time).days
 
     N = 1
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
+    X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
+    X_train,X_val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
+    corrcoef_of_data = corrcoef(X_train)
     
-    X_train,X_val,Y_train,Y_val = train_test_split(X_train,Y_train,test_size=predict_days-1)
-
     def normalize_data(X_train,Y_train,X_test):
         N = shape(X_train)[0]
         X = vstack([X_train,X_test])
@@ -209,10 +211,11 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
         X_test = X[N:]
         return X_train,Y_train,X_test
     X_train,Y_train,X_test = normalize_data(X_train,Y_train,X_test)
-    corrcoef_of_data = corrcoef(X_train)
 
     from linalg.vector import argsort
-    k = 3
+
+    # not safe currently
+    k = shape(corrcoef_of_data)[0]/2
     assert(shape(corrcoef_of_data)[0]>=k)
     clfs = []
     indexes = []
@@ -225,9 +228,8 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
         w = fancy(col,index)
         X_ = fancy(X_train,-1,index)
         X_ = multiply(X_,w)
-
-        # clf = grid_search_cv(Ridge,{'alpha':[1,0.0001,10,0.01,0.001,0.1,2,4,8,16]},X_,fancy(Y_train,-1,i),cv='full',verbose=False)
-
+        
+        # clf = grid_search_cv(Ridge,{'alpha':[1,2,4,8,16]},X_,fancy(Y_train,-1,i),cv='full',verbose=False)
         # alpha = random.choice([0.000001,1,10,0.01,0.001])
         # clf = Ridge(alpha=alpha,fit_intercept=True)
 
@@ -241,11 +243,20 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
         val_predict.append(p)
     val_predict = matrix_transpose(val_predict)
 
-    print(official_score(Y_val,val_predict))
+    # retraining on full dateset
+    for i in range(shape(Y_train)[1]):
+        col = corrcoef_of_data[i]
+        w = fancy(col,indexes[i])
+        X_ = fancy(X_train_raw,-1,indexes[i])
+        X_ = multiply(X_,w)
+        clf.fit(X_,fancy(Y_train_raw,-1,i))
 
     result = []
     for i in range(shape(Y_train)[1]):
+        col = corrcoef_of_data[i]
+        w = fancy(col,indexes[i])
         X_ = fancy(X_test,-1,indexes[i])
+        X_ = multiply(X_,w)
         p = clfs[i].predict(X_)
         result.append(p)
     result = matrix_transpose(result)[0]
@@ -257,6 +268,7 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
+
 
 
 def dynamic_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -378,6 +390,10 @@ class Dynamic_Ridge_Single(BasePredictor):
 
 
 
+def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    pass
+
+
 # build output lines
 def predict_vm(ecs_lines,input_lines):
 
@@ -392,7 +408,7 @@ def predict_vm(ecs_lines,input_lines):
         return []
 
     machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
-    ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines)
+    ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines,flavors_unique)
 
     predict,virtual_machine_sum = predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 

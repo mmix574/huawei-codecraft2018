@@ -1,6 +1,5 @@
 from linalg.common import dim,shape
-from utils import l2_loss
-from utils import official_score
+from metrics import l2_loss,official_score
 
 class BasePredictor:
     def __init__(self):
