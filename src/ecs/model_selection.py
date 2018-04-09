@@ -125,16 +125,19 @@ def grid_search_cv(estimator,paramaters,X,y,is_shuffle=False,cv='full',scoring='
         clf.fit(X,y)
         score = cross_val_score(clf,X,y,return_mean=True,is_shuffle=is_shuffle,cv=cv,scoring=scoring,random_state=random_state) 
         # clf.score(X,y)
-
+        if verbose:
+            print(p,score)
+        
         if scoring == "score":
             if max_parameter==None or max_score<score:
                 max_parameter = p
                 max_score = score
                 max_model = clf
     if verbose:
-        print(max_parameter)
+        print("max_parameter",max_parameter)
 
     if return_parameter:
         return max_model,max_parameter
     else:
         return max_model
+

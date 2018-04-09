@@ -275,6 +275,22 @@ if __name__ == '__main__':
         backtest_folder = 'local_data_2015_01_2015_05/slicing_50days_7days_strike7'
     elif sys.argv[1]=='test':
         backtest_folder = 'local_data_2015_12_2016_01/slicing_50days_7days_strike3'
+    elif sys.argv[1]=='val':
+        # python27_path = "C:\Python27\python.exe"
+        os.system('python ecs.py TrainData_2015.1.1_2015.2.19.txt input_5flavors_cpu_7days.txt output.txt')
+        # get parsed  
+        p,b = parse('input_15flavors_cpu_7days.txt','output.txt','TestData_2015.2.20_2015.2.27.txt')
+
+        s1 = predict_summary([p])
+        s2 = backpack_summary([b])
+        # done
+        print ('\n'+'-'*20 +'final combime scores below' +'-'*20)
+        combine_scores = [ s1[i]*s2[i] for i in range(len(s1))]
+        print (combine_scores,'\n')
+        print('combine_scores_max-->',max(combine_scores))
+        print('combine_scores-->',mean(combine_scores))
+        exit()
+
     else:
         print('command error')
         exit()       

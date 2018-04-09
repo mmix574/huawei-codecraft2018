@@ -91,10 +91,10 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
             removes = []
             for i in range(shape(sample)[0]):
                 for j in range(shape(sample)[1]):
-                    if abs(sample[i][j]-m[j]) > 3*std[j]:
+                    if abs(sample[i][j]-m[j]) > 2*std[j]:
                         removes.append(i)
-                        sample[i][j] = m[j]
-                        # sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
+                        # sample[i][j] = m[j]
+                        sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
                         # sample[i][j] = (4/5.0)*sample[i][j] + (1/5.0)*m[j]
                         # sample[i][j] = (7/8.0)*sample[i][j] + (1/8.0)*m[j]
                 # sample = [sample[i] for i in range(len(sample)) if i not in removes]
@@ -166,7 +166,7 @@ def simple(ecs_logs,flavors_unique,training_start_time,training_end_time,predict
     result = mean(Y_train,axis=1)
     
     # 74.713
-    result = Y_train[-1]
+    # result = Y_train[-1]
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
@@ -288,7 +288,7 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
     from linalg.vector import argsort
 
     # not safe currently
-    k = 1 if len(flavors_unique)<3 else 3
+    k = 1 if len(flavors_unique)<3 else 10
 
     assert(shape(corrcoef_of_data)[0]>=k)
     clfs = []
@@ -298,12 +298,16 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
         col_index_sorted = argsort(col)[::-1]
         index = col_index_sorted[:k]
         indexes.append(index)
-        clf = Ridge(alpha=1,fit_intercept=True)
+        clf = Ridge(alpha=1,fit_intercept=False)
+
+        # from sklearn.svm import SVR
+        # clf = SVR()
+        
         w = fancy(col,index)
         X_ = fancy(X_train,-1,index)
         X_ = multiply(X_,w)
         
-        # clf = grid_search_cv(Ridge,{'alpha':[1,2,4,8,16]},X_,fancy(Y_train,-1,i),cv='full',verbose=False)
+        clf = grid_search_cv(Ridge,{'alpha':[1,2,4,8,16]},X_,fancy(Y_train,-1,i),cv='full',verbose=False)
         # alpha = random.choice([0.000001,1,10,0.01,0.001])
         # clf = Ridge(alpha=alpha,fit_intercept=True)
 
@@ -316,6 +320,9 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
         p = clfs[i].predict(X_)
         val_predict.append(p)
     val_predict = matrix_transpose(val_predict)
+
+    # 0.0958653470916
+    print(official_score(val_predict,X_val))
 
     # retraining on full dateset
     for i in range(shape(Y_train)[1]):
@@ -344,16 +351,8 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
     return predict,virtual_machine_sum
 
 
-def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
-    return Y_train[-1]
-    
-    scores = []
-    result = []
-    
-    return result,scores
 
-
-def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def features_ridge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -361,25 +360,90 @@ def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 1
-    X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
+    N = 5
+    X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=False)
+    X_train_raw,Y_train_raw,X_test = normaling(X_train_raw,Y_train_raw,X_test,normalize_method='normalize',norm='l1')
+    corrcoef_of_data = corrcoef(X_train_raw)
+    
     X_train,X_val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
 
-    result = new_feature(X_train,Y_train,X_test)
+    features = []
+    # feature building for each flavors
+    # for i in flavors_unique
+
+    exit()
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
-
     return predict,virtual_machine_sum
+
+def features_building(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
+
+    N = 5
+    X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=False)
+    X_train_raw,Y_train_raw,X_test = normaling(X_train_raw,Y_train_raw,X_test,normalize_method='normalize',norm='l1')
+    corrcoef_of_data = corrcoef(X_train_raw)
     
+    X_train,X_val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
+
+    features = []
+    # feature building for each flavors
+    # for i in flavors_unique
+
+    exit()
+    result = [0 if r<0 else r for r in result]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
     
+    return features
+
+
+# todo
+def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
+    return Y_train[-1]
+    scores = []
+    result = []
+    return result,scores
+
+
+def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    # predict = {}.fromkeys(flavors_unique)
+    # for f in flavors_unique:
+    #     predict[f] = 0
+    # virtual_machine_sum = 0
+    # mapping_index = get_flavors_unique_mapping(flavors_unique)
+    # predict_days = (predict_end_time-predict_start_time).days
+
+    # N = 1
+    # X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
+    # X_train,X_val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
+
+    # result = new_feature(X_train,Y_train,X_test)
+    # result = [0 if r<0 else r for r in result]
+    # for f in flavors_unique:
+    #     p = result[mapping_index[f]]
+    #     predict[f] = int(round(p))
+    #     virtual_machine_sum += int(round(p))
+    # return predict,virtual_machine_sum
+    
+
+    # ------------------------------------#
     # predict_method = simple
     # predict_method = smoothing
     # predict_method = ridge_single
     # predict_method = ridge_full
     predict_method = corrcoef_supoort_ridge
+    # predict_method = features_ridge
 
     return predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
