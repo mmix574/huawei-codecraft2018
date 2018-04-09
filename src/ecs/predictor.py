@@ -392,9 +392,13 @@ def features_building(ecs_logs,flavors_unique,training_start_time,training_end_t
     predict_days = (predict_end_time-predict_start_time).days
 
     N = 1
-    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=False)
-    X_train_raw,Y_train_raw,X_test_raw = normaling(X_train_raw,Y_train_raw,X_test_raw,normalize_method='normalize',norm='l1')
+    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days-1),N=N,argumentation=True,outlier_handling=False)
+    # X_train_raw,Y_train_raw,X_test_raw = normaling(X_train_raw,Y_train_raw,X_test_raw,normalize_method='normalize',norm='l1')
     # X_train_raw,Y_train_raw,X_test_raw = normaling(X_train_raw,Y_train_raw,X_test_raw,normalize_method='standard_scaling')
+    print(X_train_raw)
+    print(Y_train_raw)
+    exit()
+    
     corrcoef_of_data = corrcoef(X_train_raw)
 
     X,y = vstack([X_train_raw,X_test_raw]),Y_train_raw
@@ -413,12 +417,14 @@ def features_building(ecs_logs,flavors_unique,training_start_time,training_end_t
 
             feature_grid.append(fea)
         feature_dense_precent = 0.8
-        n_features = shape(feature_grid)[1]
-        n_samples = shape(feature_grid)[0]
         data_dense_precent = 0.8
         
-        feature_grid = fancy(feature_grid,(int(n_samples* ((1-feature_dense_precent) * data_dense_precent)),shape(feature_grid)[0]),(int(feature_dense_precent*n_features),shape(feature_grid)[1]))
-        
+        n_features = shape(feature_grid)[1]
+        n_samples = shape(feature_grid)[0]
+        dim_0 = (int(n_samples* ((1-feature_dense_precent) * data_dense_precent)),shape(feature_grid)[0])
+        dim_1 = (int(feature_dense_precent*n_features),shape(feature_grid)[1])
+
+        feature_grid = fancy(feature_grid,dim_0,dim_1)
         # feature_grid:
         # (n_samples,n_features) 
         # [-----------|----------1]
@@ -434,9 +440,15 @@ def features_building(ecs_logs,flavors_unique,training_start_time,training_end_t
         # feature_grid = fancy(feature_grid,-1,drop)
 
         # ... other preprocessing ..
-        X_trainS.append(feature_grid)
-        X_test_S.append(feature_grid)
-        Y_trainS.append(fancy(y,int(n_samples* ((1-feature_dense_precent) * data_dense_precent)),mapping_index[f]))
+        print(shape(feature_grid[:-shape(X_train_raw)[0]]))
+        print(shape(feature_grid[-shape(X_train_raw)[0]:]))
+        # print(fancy(y,dim_0,mapping_index[f]))
+        
+        exit()
+
+        X_trainS.append(feature_grid[:-shape(X_train_raw)[0]])
+        X_test_S.append(feature_grid[-shape(X_train_raw)[0]:])
+        Y_trainS.append(fancy(y,dim_0,mapping_index[f]))
 
     return X_trainS,Y_trainS,X_test_S
 
