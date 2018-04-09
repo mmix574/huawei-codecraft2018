@@ -399,31 +399,44 @@ def features_building(ecs_logs,flavors_unique,training_start_time,training_end_t
 
     X,y = vstack([X_train_raw,X_test_raw]),Y_train_raw
 
-    features = []
+    X_trainS,Y_trainS,X_test_S = [],[],[]
+
     for f in flavors_unique:
         history = fancy(X,-1,mapping_index[f])
-        feature = []
+        feature_grid = []
+
+        # building feature grid
         for i in range(len(history)):
             fea = []
             fea.extend([0 for _ in range(len(history)-1-i)])
             fea.extend(history[:i+1])
-            feature.append(fea)
-        std = stdev(feature)
 
-        mask = [True if s>0.02 else False for s in std]
-
-        feature = fancy(feature,-1,mask)
+            feature_grid.append(fea)
+        feature_dense_precent = 0.1
+        n_features = shape(feature_grid)[1]
+        feature_grid = fancy(feature_grid,-1,(int(feature_dense_precent*n_features),shape(feature_grid)[1]))
+        
+        # feature_grid:
         # (n_samples,n_features) 
-        # [---------------------1]
-        # [------------------1--2]
-        # [---------------1--2--3]
-        # [------------..........]
-        # [1--2--3..............n]
+        # [-----------|----------1]
+        # [-----------|-------1--2]
+        # [-----------|----1--2--3]  --<--cut some where,and fill the blank with some value.
+        # [-----------|-..........]
+        # [1--2--3....|..........n]
         # sparse  --------  dense
-        # PS:
+
         # ..filter the sparse feature by checking stdev..
-        features.append(feature)
-    return X_train,Y_train,X_test
+        # std = stdev(feature_grid)
+        # drop = [False if s<=0.02 else True for s in std]
+        # feature_grid = fancy(feature_grid,-1,drop)
+
+        # ... other preprocessing ..
+        # todo
+        X_trainS.append(feature_grid[:shape(X_train_raw)[0]])
+        X_test_S.append(feature_grid[shape(X_train_raw)[0]:])
+        Y_trainS.append(fancy(y,-1,mapping_index[f]))
+
+    return X_trainS,Y_trainS,X_test_S
 
 def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
     return Y_train[-1]
@@ -433,12 +446,12 @@ def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False)
 
 
 def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    # predict = {}.fromkeys(flavors_unique)
-    # for f in flavors_unique:
-    #     predict[f] = 0
-    # virtual_machine_sum = 0
-    # mapping_index = get_flavors_unique_mapping(flavors_unique)
-    # predict_days = (predict_end_time-predict_start_time).days
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
 
     # N = 1
     # X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
@@ -458,11 +471,28 @@ def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_
     # predict_method = smoothing
     # predict_method = ridge_single
     # predict_method = ridge_full
-    predict_method = corrcoef_supoort_ridge
+    # predict_method = corrcoef_supoort_ridge
     # predict_method = features_ridge
-    features_building(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    X_trainS,Y_trainS,X_test_S = features_building(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    result = [] 
+    for f in flavors_unique:
+        X = X_trainS[mapping_index[f]]
+        y = Y_trainS[mapping_index[f]]
+        X_test = X_test_S[mapping_index[f]]
 
-    return predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+        # clf = Ridge(alpha=0.1,fit_intercept=False)
+        clf = grid_search_cv(Ridge,{'alpha':[1e-1,1e-2,1e-3,1e-4,1,2,4,8],'fit_intercept':[False]},X,y,verbose=False)
+        result.append(clf.predict(X_test))
+
+
+    result = matrix_transpose(result)[0]
+    result = [0 if r<0 else r for r in result]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+    return predict,virtual_machine_sum
+    # return predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
 
 # build output lines
