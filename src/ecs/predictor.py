@@ -21,6 +21,7 @@ from model_selection import cross_val_score, grid_search_cv, train_test_split
 from predictions.base import BasePredictor
 from preprocessing import normalize,minmax_scaling,standard_scaling
 
+from linalg.matrix import stdev
 
 # fix bug 2018-04-02
 # modify @2018-03-28
@@ -393,16 +394,36 @@ def features_building(ecs_logs,flavors_unique,training_start_time,training_end_t
     N = 1
     X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=False)
     X_train_raw,Y_train_raw,X_test_raw = normaling(X_train_raw,Y_train_raw,X_test_raw,normalize_method='normalize',norm='l1')
+    # X_train_raw,Y_train_raw,X_test_raw = normaling(X_train_raw,Y_train_raw,X_test_raw,normalize_method='standard_scaling')
     corrcoef_of_data = corrcoef(X_train_raw)
 
     X,y = vstack([X_train_raw,X_test_raw]),Y_train_raw
-    print(shape(X))
-    print(shape(y))
-    exit()
 
+    features = []
+    for f in flavors_unique:
+        history = fancy(X,-1,mapping_index[f])
+        feature = []
+        for i in range(len(history)):
+            fea = []
+            fea.extend([0 for _ in range(len(history)-1-i)])
+            fea.extend(history[:i+1])
+            feature.append(fea)
+        std = stdev(feature)
 
-    X_train_flavors_unique,X_val_flavors_unique,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
+        mask = [True if s>0.02 else False for s in std]
 
+        feature = fancy(feature,-1,mask)
+        # (n_samples,n_features) 
+        # [---------------------1]
+        # [------------------1--2]
+        # [---------------1--2--3]
+        # [------------..........]
+        # [1--2--3..............n]
+        # sparse  --------  dense
+        # PS:
+        # ..filter the sparse feature by checking stdev..
+        features.append(feature)
+    return X_train,Y_train,X_test
 
 def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
     return Y_train[-1]

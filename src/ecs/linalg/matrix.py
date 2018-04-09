@@ -1,57 +1,8 @@
-from .common import dim,shape
-from .common import zeros
-# moved to common 
+from common import mean, multiply, sqrt, square
+from linalg.common import mean, minus, sqrt, square
 
-# def zeros(*args,**kwargs):
-#     # fix @ 2018-03-20
-#     if 'dtype' in kwargs:
-#         dtype = kwargs['dtype']
-#     else:
-#         dtype = float
-#     assert(len(args)>0)
-#     s = tuple(args[0]) if type(args[0])==tuple else tuple(args)
+from .common import dim, shape, zeros
 
-#     if type(s)==int:
-#         return [dtype(0) for _ in range(s)]
-#     elif type(s) == tuple and len(s)==1:
-#         return [dtype(0) for _ in range(s[0])]
-#     else:
-#         import copy
-#         r = zeros(s[1:],dtype=dtype)
-#         R = []
-#         for i in range(s[0]):
-#             R.append(copy.deepcopy(r)) # fix a bug here
-#     return R
-
-# def ones(*args,**kwargs):
-#     if 'dtype' in kwargs:
-#         dtype = kwargs['dtype']
-#     else:
-#         dtype = float
-#     assert(len(args)>0)
-#     assert(len(args)>0)
-#     s = tuple(args[0]) if type(args[0])==tuple else tuple(args)
-
-#     if type(s)==int:
-#         return [dtype(1) for _ in range(s)]
-#     elif type(s) == tuple and len(s)==1:
-#         return [dtype(1) for _ in range(s[0])]
-#     else:
-#         import copy
-#         r = ones(s[1:],dtype=dtype)
-#         R = []
-#         for i in range(s[0]):
-#             R.append(copy.deepcopy(r))
-#     return R
-
-# freeze @2018-03-19
-# use matrix_transpose(A)[i] instead
-
-# columns slicing of matrix A
-# def col(A,i):
-#     assert(dim(A)==2)
-#     m,n = shape(A)
-#     return [A[k][i] for k in range(m)]
 
 def matrix_matmul(A,B):
     assert(dim(A)==2 and dim(B)==2 and shape(A)[1]==shape(B)[0])
@@ -159,48 +110,6 @@ def matrix_transpose(A):
         result.append(r)
     return result
 
-# freeze @ 2018-03-20
-# (use common.minus,comon.plus,commin.multiply instead.)
-
-# def matrix_minus(A,B):
-#     assert(dim(A)==2 and dim(B)==2)
-#     assert(shape(A)==shape(B))
-#     m,n = shape(A)
-#     R = zeros((m,n))
-#     for i in range(m):
-#         for j in range(n):
-#             R[i][j] = A[i][j] - B[i][j]
-#     return R
-
-# def matrix_plus(A,B):
-#     assert(dim(A)==2 and dim(B)==2)
-#     assert(shape(A)==shape(B))
-#     m,n = shape(A)
-#     R = zeros((m,n))
-#     for i in range(m):
-#         for j in range(n):
-#             R[i][j] = A[i][j] + B[i][j]
-#     return R
-
-# def matrix_multiply(A,B):
-#     assert(dim(A)==2 and dim(B)==2)
-#     assert(shape(A)==shape(B))
-#     m,n = shape(A)
-#     R = zeros((m,n))
-#     for i in range(m):
-#         for j in range(n):
-#             R[i][j] = A[i][j] * B[i][j]
-#     return R
-
-# def matrix_multiply_factor(A,fa):
-#     assert(dim(A)==2 and (type(fa)==float or type(fa)==int))
-#     m,n = shape(A)
-#     R = zeros((m,n))
-#     for i in range(m):
-#         for j in range(n):
-#             R[i][j] = A[i][j] * fa
-#     return R
-
 def matrix_copy(A):
     assert(dim(A)==2)
     m,n = shape(A)
@@ -305,7 +214,6 @@ def shift(A,shift_step):
     return R
 
 
-from common import mean,multiply,sqrt,square
 # column vector corrcoef
 def corrcoef(A):
     assert(dim(A)==2)
@@ -339,4 +247,15 @@ def corrcoef(A):
                 R[i][j] = R[j][i]
             else:
                 R[i][j] = _corr(A,i,j)
+    return R
+
+
+def stdev(X,axis=1):
+    assert(dim(X)==2)
+    assert(axis==1)
+    X_T = matrix_transpose(X)
+    m = mean(X,axis=1)
+    R = []
+    for j in range(shape(X)[1]):
+        R.append(sqrt(mean(square(minus(X_T[j],m[j])))))
     return R

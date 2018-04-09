@@ -363,12 +363,13 @@ def flatten(A):
         R.extend(flatten(A[i]))
     return R
 
+
 # add 2018-04-04
+# fix boolean index bug @2018-04-09
 def fancy(*argv):
     A = argv[0]
     assert(type(A)==list)
     assert(dim(A)==len(argv)-1)
-
     if dim(A)==1:
         if type(argv[1])==int:
             if argv[1]==-1:
@@ -379,7 +380,7 @@ def fancy(*argv):
             return [A[i] for i in range(argv[1][0],argv[1][1])]
         elif type(argv[1])==list:
             is_bools = True
-            for x in argv:
+            for x in argv[1]:
                 if type(x)!=bool:
                     is_bools = False
                     break
@@ -391,16 +392,20 @@ def fancy(*argv):
             raise Exception            
     else:
         if type(argv[1])==int:
+            
             if argv[1]==-1:
                 return [fancy(A[i],*argv[2:]) for i in range(shape(A)[0])]
             else:
                 return fancy(A[argv[1]],*argv[2:])
+            
         elif type(argv[1])==tuple:
+            
             return [fancy(A[i],*argv[2:]) for i in range(argv[1][0],argv[1][1])]
 
         elif type(argv[1])==list:
+            
             is_bools = True
-            for x in argv:
+            for x in argv[1]:
                 if type(x)!=bool:
                     is_bools = False
                     break
@@ -410,4 +415,5 @@ def fancy(*argv):
                 return [fancy(A[i],*argv[2:]) for i in argv[1]]
 
         else:
+            
             raise Exception
