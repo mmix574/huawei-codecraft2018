@@ -344,12 +344,12 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
     return predict,virtual_machine_sum
 
 
-def new_method(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
-    
+def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
     return Y_train[-1]
+    
     scores = []
     result = []
-
+    
     return result,scores
 
 
@@ -365,7 +365,16 @@ def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_
     X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
     X_train,X_val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
 
-    return new_method(X_train,Y_train,X_test)
+    result = new_feature(X_train,Y_train,X_test)
+    result = [0 if r<0 else r for r in result]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+
+    return predict,virtual_machine_sum
+    
+    
     # predict_method = simple
     # predict_method = smoothing
     # predict_method = ridge_single
@@ -393,8 +402,14 @@ def predict_vm(ecs_lines,input_lines):
     result.append('') # output '\n'
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
-    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=1000)
+    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors,flavors_unique,predict,optimized,k=1000)
     
+    
+    # todo 
+    # from backpack import maximize_score_backpack
+    # backpack_list,entity_machine_sum = maximize_score_backpack(machine_config,flavors,flavors_unique,predict,optimized,k=1000)
+
+
     result.append('{}'.format(entity_machine_sum))
 
     # print(backpack_list)

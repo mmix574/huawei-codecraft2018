@@ -41,6 +41,7 @@ def parse_input_lines(input_lines):
     predict_end_time = datetime.strptime(predict_times[1], "%Y-%m-%d %H:%M:%S")
 
     # sorted flavors_unique @date 03-15
+    # important, do not delete
     flavors_unique = sorted(flavors_unique)
 
     return machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time

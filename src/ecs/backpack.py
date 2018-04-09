@@ -1,5 +1,37 @@
 import random
 from linalg.vector import count_nonezero
+from metrics import official_score
+
+
+# em --> {'1':2,...}
+def _get_em_weights_of_cpu_and_mem(em,flavors):
+    cpu = 0
+    mem = 0
+    for k,v in em.items():
+        cpu += flavors[k][0]*v
+        mem += flavors[k][1]*v
+    return cpu,mem
+
+def backpack_scoring(machine_config,flavors,optimized,ems):
+    assert(optimized=='CPU' or optimized=='MEM')
+    machine_count = len(ems)
+    if machine_count==0:
+        return 0
+    
+    total_used = 0
+    total = 0 
+    if optimized=='CPU':
+        total = machine_count * machine_config['cpu']
+        for em in ems:
+            cpu,men = _get_em_weights_of_cpu_and_mem(em,flavors)
+            total_used+=cpu
+    elif optimized=='MEM':
+        total = machine_count * machine_config['mem']
+        for em in ems:
+            cpu,men = _get_em_weights_of_cpu_and_mem(em,flavors)
+            total_used+=men
+    return 0 if total==0 else total_used/float(total)
+
 def backpack(machine_config,flavors,flavors_unique,predict,is_random=False):
     entity_machine_sum = 0
     backpack_list = []
@@ -26,14 +58,6 @@ def backpack(machine_config,flavors,flavors_unique,predict,is_random=False):
         vm_list = vm_list_random
     else:
         vm_list = vm_list_normal
-
-    def _get_em_weights_of_cpu_and_mem(em,flavors):
-        cpu = 0
-        mem = 0
-        for k,v in em.items():
-            cpu += flavors[k][0]*v
-            mem += flavors[k][1]*v
-        return cpu,mem
 
     for i in vm_list:
         # try to push into backpack pool
@@ -67,9 +91,10 @@ def backpack(machine_config,flavors,flavors_unique,predict,is_random=False):
         entity_machine_sum+=1
 
     # print(backpack_list)
-    return backpack_list,entity_machine_sum
+    ems = backpack_list
+    return ems,entity_machine_sum
 
-def backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=100):
+def backpack_random_k_times(machine_config,flavors,flavors_unique,predict,optimized,k=100,verbose=False):
     assert(k>=0)
     solution_set = []
     solution_set.append(backpack(machine_config,flavors,flavors_unique,predict))
@@ -87,24 +112,46 @@ def backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=100)
         elif minium_count>s[1]:
             minium_count = s[1]
             best_solution = s
+    
+    ems = best_solution[0]
     return best_solution
 
 
-from metrics import official_score
+                        
+def _convert_predict_dict_to_vector(predict,flavors_unique):
+    result = [predict[f] for f in flavors_unique]
+    return result
+
+
 
 # todo 
-def backpack_scoring(machine_config,optimized,backpack_list):
-    pass
+def maximize_score_backpack(machine_config,flavors,flavors_unique,predict,optimized,k=100,verbose=False):
+    # def new_em(flavors_unique):
+    #     m = {}
+    #     m.fromkeys(flavors_unique)
+    #     for i in flavors_unique:
+    #         m[i] = 0
+    #     em = dict(m)
+    #     return em
+    #     assert(k>=0)
+    y = _convert_predict_dict_to_vector(predict,flavors_unique)
 
+    solution_set = []
+    solution_set.append(backpack(machine_config,flavors,flavors_unique,predict))
 
-def maximize_score_backpack(machine_config,optimized,flavors,flavors_unique,predict):
-    # entity_machine_sum 5
-    # backpack_list  [em,em,em..]
-    def new_em(flavors_unique):
-        m = {}
-        m.fromkeys(flavors_unique)
-        for i in flavors_unique:
-            m[i] = 0
-        em = dict(m)
-        return em
-    # return backpack_list,entity_machine_sum
+    for i in range(k):
+        solution_set.append(backpack(machine_config,flavors,flavors_unique,predict,is_random=True))
+
+    best_solution = None
+    minium_count = None
+
+    for s in solution_set:
+        if not minium_count:
+            minium_count = s[1]
+            best_solution = s
+        elif minium_count>s[1]:
+            minium_count = s[1]
+            best_solution = s
+    
+    ems = best_solution[0]
+    return best_solution
