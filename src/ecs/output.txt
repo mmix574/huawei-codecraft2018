@@ -1,9 +1,9 @@
-8
+7
 flavor1 0
-flavor2 0
+flavor2 1
 flavor3 1
 flavor4 1
-flavor5 6
+flavor5 4
 
 1
-1 flavor3 1 flavor4 1 flavor5 6
+1 flavor2 1 flavor3 1 flavor4 1 flavor5 4

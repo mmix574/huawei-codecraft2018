@@ -412,9 +412,12 @@ def features_building(ecs_logs,flavors_unique,training_start_time,training_end_t
             fea.extend(history[:i+1])
 
             feature_grid.append(fea)
-        feature_dense_precent = 0.1
+        feature_dense_precent = 0.8
         n_features = shape(feature_grid)[1]
-        feature_grid = fancy(feature_grid,-1,(int(feature_dense_precent*n_features),shape(feature_grid)[1]))
+        n_samples = shape(feature_grid)[0]
+        data_dense_precent = 0.8
+        
+        feature_grid = fancy(feature_grid,(int(n_samples* ((1-feature_dense_precent) * data_dense_precent)),shape(feature_grid)[0]),(int(feature_dense_precent*n_features),shape(feature_grid)[1]))
         
         # feature_grid:
         # (n_samples,n_features) 
@@ -431,10 +434,9 @@ def features_building(ecs_logs,flavors_unique,training_start_time,training_end_t
         # feature_grid = fancy(feature_grid,-1,drop)
 
         # ... other preprocessing ..
-        # todo
-        X_trainS.append(feature_grid[:shape(X_train_raw)[0]])
-        X_test_S.append(feature_grid[shape(X_train_raw)[0]:])
-        Y_trainS.append(fancy(y,-1,mapping_index[f]))
+        X_trainS.append(feature_grid)
+        X_test_S.append(feature_grid)
+        Y_trainS.append(fancy(y,int(n_samples* ((1-feature_dense_precent) * data_dense_precent)),mapping_index[f]))
 
     return X_trainS,Y_trainS,X_test_S
 
@@ -480,8 +482,9 @@ def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_
         y = Y_trainS[mapping_index[f]]
         X_test = X_test_S[mapping_index[f]]
 
-        # clf = Ridge(alpha=0.1,fit_intercept=False)
-        clf = grid_search_cv(Ridge,{'alpha':[1e-1,1e-2,1e-3,1e-4,1,2,4,8],'fit_intercept':[False]},X,y,verbose=False)
+        clf = Ridge(alpha=0.01,fit_intercept=False)
+        clf.fit(X,y)
+        # clf = grid_search_cv(Ridge,{'alpha':[1e-1,1e-2,1e-3,1e-4,1,2,4,8],'fit_intercept':[False]},X,y,verbose=False)
         result.append(clf.predict(X_test))
 
 
