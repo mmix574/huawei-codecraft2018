@@ -193,20 +193,26 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
 
     N = 1
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
-    corrcoef_of_data = corrcoef(X_train)
-
+    
+    X_train,X_val,Y_train,Y_val = train_test_split(X_train,Y_train,test_size=predict_days-1)
 
     def normalize_data(X_train,Y_train,X_test):
         N = shape(X_train)[0]
         X = vstack([X_train,X_test])
+        from preprocessing import minmax_scaling,standard_scaling
+
         X = normalize(X)
+        # X = minmax_scaling(X)
+        # X = standard_scaling(X)
+        
         X_train = X[:N]
         X_test = X[N:]
         return X_train,Y_train,X_test
     X_train,Y_train,X_test = normalize_data(X_train,Y_train,X_test)
+    corrcoef_of_data = corrcoef(X_train)
 
     from linalg.vector import argsort
-    k = 4
+    k = 3
     assert(shape(corrcoef_of_data)[0]>=k)
     clfs = []
     indexes = []
@@ -214,28 +220,37 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
         col = corrcoef_of_data[i]
         col_index_sorted = argsort(col)[::-1]
         index = col_index_sorted[:k]
-        print(index)
         indexes.append(index)
-        clf = Ridge(alpha=1)
-        print(shape(X_train))
+        clf = Ridge(alpha=1,fit_intercept=True)
+        w = fancy(col,index)
         X_ = fancy(X_train,-1,index)
-        
+        X_ = multiply(X_,w)
 
-        print(shape(X_))
+        # clf = grid_search_cv(Ridge,{'alpha':[1,0.0001,10,0.01,0.001,0.1,2,4,8,16]},X_,fancy(Y_train,-1,i),cv='full',verbose=False)
 
-        exit()
+        # alpha = random.choice([0.000001,1,10,0.01,0.001])
+        # clf = Ridge(alpha=alpha,fit_intercept=True)
+
         clf.fit(X_,fancy(Y_train,-1,i))
         clfs.append(clf)
-    
+
+    val_predict = []
+    for i in range(shape(Y_train)[1]):
+        X_ = fancy(X_val,-1,indexes[i])
+        p = clfs[i].predict(X_)
+        val_predict.append(p)
+    val_predict = matrix_transpose(val_predict)
+
+    print(official_score(Y_val,val_predict))
+
     result = []
     for i in range(shape(Y_train)[1]):
         X_ = fancy(X_test,-1,indexes[i])
         p = clfs[i].predict(X_)
         result.append(p)
+    result = matrix_transpose(result)[0]
 
-    result = matrix_transpose(result)
-    print(result)
-    exit()
+
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]

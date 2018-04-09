@@ -18,6 +18,8 @@ def l2_loss(y,y_,return_losses=False):
 
 # vector and matrix supportted
 def official_score(y,y_,return_scores=False):
+    y_ = [int(round(i)) for i in y_]
+    
     assert(dim(y)<=2 and dim(y_)<=2)
     def _score_calc(y,y_):
         numerator = sqrt(mean(square(minus(y,y_))))

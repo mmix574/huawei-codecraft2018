@@ -386,7 +386,7 @@ def fancy(*argv):
             if is_bools:
                 return [A[i] for i in range(len(argv[1])) if argv[1][i]==True]
             else:
-                return [A[i] for i in range(len(argv[1])) if i in argv[1]]
+                return [A[i] for i in argv[1]]
         else:
             raise Exception            
     else:
@@ -407,7 +407,7 @@ def fancy(*argv):
             if is_bools:
                 return [fancy(A[i],*argv[2:]) for i in range(len(argv[1])) if argv[1][i]==True]
             else:
-                return [fancy(A[i],*argv[2:]) for i in range(len(argv[1])) if i in argv[1]]
+                return [fancy(A[i],*argv[2:]) for i in argv[1]]
 
         else:
             raise Exception
