@@ -345,9 +345,12 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
 
 
 def new_method(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
+    
     return Y_train[-1]
+    scores = []
+    result = []
 
-
+    return result,scores
 
 
 def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -391,6 +394,7 @@ def predict_vm(ecs_lines,input_lines):
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
     backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors,flavors_unique,predict,k=1000)
+    
     result.append('{}'.format(entity_machine_sum))
 
     # print(backpack_list)
