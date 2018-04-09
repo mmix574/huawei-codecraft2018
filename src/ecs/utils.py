@@ -2,11 +2,6 @@ import math
 import re
 from datetime import datetime
 
-from linalg.common import (dim, dot, mean, minus, multiply, plus, reshape,
-                           shape, sqrt, square, sum, zeros)
-from linalg.matrix import hstack, matrix_matmul, matrix_transpose, shift
-from linalg.vector import count_nonezero
-
 def parse_input_lines(input_lines):
     input_lines = [x.strip() for x in input_lines]
 
@@ -70,7 +65,7 @@ def parse_ecs_lines(ecs_lines,flavors_unique):
     training_end_time = ecs_logs[len(ecs_logs)-1][1]
     return ecs_logs,training_start_time,training_end_time
 
-
+# checked
 def get_flavors_unique_mapping(flavors_unique):
     mapping_index = {}.fromkeys(flavors_unique)
     c = 0

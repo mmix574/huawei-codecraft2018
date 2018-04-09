@@ -10,7 +10,7 @@ tar -czvf my.tar.gz  src/
 tar -czvf my.tar.gz src/ecs/ecs.py src/ecs/learn/*.py src/ecs/ecs.py src/ecs/linalg/*.py src/ecs/ecs.py src/ecs/predictions/*.py src/ecs/backpack.py src/ecs/ensemble.py src/ecs/load_data.py src/ecs/metrics.py src/ecs/model_selection.py src/ecs/preprocessing.py src/ecs/utils.py
 
 最新打包：
-tar -czvf my.tar.gz src/ecs/*.py src/ecs/*.txt src/ecs/learn/*.py src/ecs/ecs.py src/ecs/linalg/*.py src/ecs/ecs.py src/ecs/predictions/*.py 
+tar -czvf -6day_5.tar.gz src/ecs/*.py src/ecs/*.txt src/ecs/learn/*.py src/ecs/ecs.py src/ecs/linalg/*.py src/ecs/ecs.py src/ecs/predictions/*.py 
 
 
 src/ecs/paramater/*.*

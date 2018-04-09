@@ -19,7 +19,7 @@ from linalg.matrix import corrcoef
 
 from model_selection import cross_val_score, grid_search_cv, train_test_split
 from predictions.base import BasePredictor
-from preprocessing import normalize
+from preprocessing import normalize,minmax_scaling,standard_scaling
 
 
 # fix bug 2018-04-02
@@ -72,7 +72,14 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
         # add count 
         sample[ith][mapping_index[flavor]] += 1
 
+    # --------------------------
     sample = sample[::-1]
+    # [       old data            ]
+    # [                           ]
+    # [                           ]
+    # [                           ]
+    # [       new_data            ]
+    # --------------------------
 
     # handling outlier
     if outlier_handling:
@@ -90,12 +97,7 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
                         # sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
                         # sample[i][j] = (4/5.0)*sample[i][j] + (1/5.0)*m[j]
                         # sample[i][j] = (7/8.0)*sample[i][j] + (1/8.0)*m[j]
-            return sample
-            
-            if len(removes)/float(len(sample)) <0.5:
-                sample = [sample[i] for i in range(len(sample)) if i not in removes]
-                return sample
-            else:
+                # sample = [sample[i] for i in range(len(sample)) if i not in removes]
                 return sample
         sample = processing_sample(sample)
 
@@ -125,6 +127,80 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return X_train,Y_train,X_test 
 
 
+def normaling(X_train,Y_train,X_test,normalize_method='standard_scaling',norm='l1'):
+    assert(normalize_method=='normalize' or normalize_method=='minmax_scaling' or normalize_method=='standard_scaling')
+    N = shape(X_train)[0]
+    X = vstack([X_train,X_test])
+
+    if normalize_method=='normalize':
+        # 55.08
+        X = normalize(X,norm=norm)
+    elif normalize_method=='minmax_scaling':
+        # 56.308
+        X = minmax_scaling(X)
+    elif normalize_method=='standard_scaling':
+        # 59.661
+        X = standard_scaling(X)
+    
+    X_train = X[:N]
+    X_test = X[N:]
+    return X_train,Y_train,X_test
+
+
+def simple(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
+
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
+    
+    N = 1
+
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,outlier_handling=True)
+    # X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='normalize')
+
+
+    # 56.214
+    result = mean(Y_train,axis=1)
+    
+    # 74.713
+    result = Y_train[-1]
+    result = [0 if r<0 else r for r in result]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+    return predict,virtual_machine_sum
+
+def smoothing(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    predict = {}.fromkeys(flavors_unique)
+    for f in flavors_unique:
+        predict[f] = 0
+    virtual_machine_sum = 0
+
+    mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
+
+    N = 1
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,outlier_handling=True)
+    weight_decay = 0.5
+
+    X = Y_train[::-1][:5]
+
+    norm = sum([math.pow(weight_decay,k) for k in range(shape(X)[0])])
+    W = [math.pow(weight_decay,k)/norm for k in range(shape(X)[0])]
+    W = matrix_transpose([W for _ in range(shape(X)[1])])
+
+    result = sum(multiply(X,W),axis=0)
+    result = [0 if r<0 else r for r in result]
+    for f in flavors_unique:
+        p = result[mapping_index[f]]
+        predict[f] = int(round(p))
+        virtual_machine_sum += int(round(p))
+    return predict,virtual_machine_sum
+
 def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -137,12 +213,12 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
     N = 1
 
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,get_flatten=True)
+    X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='normalize')
+    # X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='minmax_scaling')
+    # X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='standard_scaling')
 
-    from preprocessing import normalize
-    X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
-    X_test = multiply(X_test,norm_inv)
-
-    clf = grid_search_cv(Ridge_Single,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
+    # clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
+    clf = Ridge()
     clf.fit(X_train,Y_train)    
 
     result = clf.predict(X_test)[0]
@@ -163,26 +239,34 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 5
+    N = 4
 
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,get_flatten=True)
+    X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='normalize',norm='l1')
 
-    from preprocessing import normalize
-    X_train,norm_inv = normalize(X_train,norm='l1',axis=1,return_norm_inv=True)
-    X_test = multiply(X_test,norm_inv)
+    clfs = []
+    for i in range(shape(Y_train)[1]):
+        clf = Ridge(alpha=1)
+        X_ = reshape(X_train,(shape(X_train)[0],-1,shape(Y_train)[1]))
+        X_ = fancy(X_,-1,-1,i)
+        y_ = fancy(Y_train,-1,i)
+        clf.fit(X_,y_)
+        clfs.append(clf)
+    result = []
+    for i in range(shape(Y_train)[1]):
+        X_ = reshape(X_test,(shape(X_test)[0],-1,shape(Y_train)[1]))
+        X_ = fancy(X_,-1,-1,i)
+        result.append(clfs[i].predict(X_))
 
-    # clf = grid_search_cv(Ridge_Single,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
-    clf = Ridge_Single(alpha=1)
-    clf.fit(X_train,Y_train)    
+    result = matrix_transpose(result)[0]
 
-    result = clf.predict(X_test)[0]
+    # result = clf.predict(X_test)[0]
     result = [0 if r<0 else r*(predict_days/float(predict_days)) for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
-
 
 
 def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -194,28 +278,18 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
     predict_days = (predict_end_time-predict_start_time).days
 
     N = 1
-    X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True)
+    X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
     X_train,X_val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
     corrcoef_of_data = corrcoef(X_train)
     
-    def normalize_data(X_train,Y_train,X_test):
-        N = shape(X_train)[0]
-        X = vstack([X_train,X_test])
-        from preprocessing import minmax_scaling,standard_scaling
 
-        X = normalize(X)
-        # X = minmax_scaling(X)
-        # X = standard_scaling(X)
-        
-        X_train = X[:N]
-        X_test = X[N:]
-        return X_train,Y_train,X_test
-    X_train,Y_train,X_test = normalize_data(X_train,Y_train,X_test)
+    X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='standard_scaling')
 
     from linalg.vector import argsort
 
     # not safe currently
-    k = shape(corrcoef_of_data)[0]/2
+    k = 1 if len(flavors_unique)<3 else 3
+
     assert(shape(corrcoef_of_data)[0]>=k)
     clfs = []
     indexes = []
@@ -270,9 +344,13 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
     return predict,virtual_machine_sum
 
 
+def new_method(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
+    return Y_train[-1]
 
-def dynamic_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    # modify @ 2018-03-15 
+
+
+
+def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -280,137 +358,29 @@ def dynamic_ridge_regression_single(ecs_logs,flavors_unique,training_start_time,
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 3
-    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=False)
-    
-    X_train_raw,norm_inv = normalize(X_train_raw,norm='l1',axis=1,return_norm_inv=True)
-    X_test_raw = multiply(X_test_raw,norm_inv)
+    N = 1
+    X_train_raw,Y_train_raw,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,outlier_handling=True)
+    X_train,X_val,Y_train,Y_val = train_test_split(X_train_raw,Y_train_raw,test_size=predict_days-1,align='right')
 
-    clf = Dynamic_Ridge_Single({"alpha":[0.1,0.01,0.001,1,0.2,2,0.6,0.8,5,3,10]})
-    clf.fit(X_train_raw,Y_train_raw)
+    return new_method(X_train,Y_train,X_test)
+    # predict_method = simple
+    # predict_method = smoothing
+    # predict_method = ridge_single
+    # predict_method = ridge_full
+    predict_method = corrcoef_supoort_ridge
 
-    result = clf.predict(X_test_raw)[0]
-    result = [0 if r<0 else r for r in result]
-    for f in flavors_unique:
-        p = result[mapping_index[f]]
-        predict[f] = int(round(p))
-        virtual_machine_sum += int(round(p))
-    return predict,virtual_machine_sum
-
-
-class Ridge_Full(BasePredictor):
-    def __init__(self,alpha=1):
-        BasePredictor.__init__(self)
-        self.clf = None
-        self.alpha = alpha
-    
-    def fit(self,X,y):
-        
-        clf = Ridge(fit_intercept=True,alpha=self.alpha)
-        X = reshape(X,(shape(X)[0],-1))
-        clf.fit(X,y)
-        self.clf = clf
-
-    def predict(self,X):
-        X = reshape(X,(shape(X)[0],-1))
-        return self.clf.predict(X)
-
-
-class Ridge_Single(BasePredictor):
-    def __init__(self,alpha=1):
-        BasePredictor.__init__(self)
-        self.clfs = []
-        self.alpha = alpha
-        self.shape_X = None
-    
-    def fit(self,X,y):
-        from linalg.common import fancy
-        X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
-        self.shape_X = shape(X)
-        for i in range(shape(y)[1]):
-
-            clf = Ridge(fit_intercept=True,alpha=self.alpha)
-            _X = fancy(X,-1,-1,i)
-            _y = fancy(y,-1,(i,i+1))
-            
-            clf.fit(_X,_y)
-            self.clfs.append(clf)
-
-    def predict(self,X):
-        prediction = []
-        from linalg.common import fancy
-        s = list(self.shape_X)
-        s[0] = -1
-        X = reshape(X,s)
-        for i in range(self.shape_X[-1]):
-            clf = self.clfs[i]
-            _X = fancy(X,-1,-1,i)
-            p = clf.predict(_X)
-            prediction.append(p)
-        R = reshape(prediction,(shape(prediction)[0],-1))
-        return matrix_transpose(R)
-    
-class Dynamic_Ridge_Single(BasePredictor):
-    def __init__(self,parameters):
-        BasePredictor.__init__(self)
-        self.clfs = []
-        self.parameter = parameters
-        self.shape_X = None
-
-    def fit(self,X,y):
-        from linalg.common import fancy
-        X = reshape(X,(shape(X)[0],-1,shape(y)[1]))
-        self.shape_X = shape(X)
-        for i in range(shape(y)[1]):
-
-            # clf = Ridge(fit_intercept=True,alpha=0.1)
-            _X = fancy(X,-1,-1,i)
-            _y = fancy(y,-1,(i,i+1))
-            alpha_range = []
-            alpha_range.extend(arange(0.0001,0.1,10))
-            alpha_range.extend(arange(1,10,5))
-            clf = grid_search_cv(Ridge,{'fit_intercept':[True,False],'alpha':alpha_range},_X,_y,verbose=False)
-            
-            clf.fit(_X,_y)
-            self.clfs.append(clf)
-
-    def predict(self,X):
-        prediction = []
-        from linalg.common import fancy
-        s = list(self.shape_X)
-        s[0] = -1
-        X = reshape(X,s)
-        for i in range(self.shape_X[-1]):
-            clf = self.clfs[i]
-            _X = fancy(X,-1,-1,i)
-            p = clf.predict(_X)
-            prediction.append(p)
-        R = reshape(prediction,(shape(prediction)[0],-1))
-        return matrix_transpose(R)
-
-
-
-def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
-    pass
+    return predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
-
-    # predict_method = ridge_full
-    # predict_method = ridge_single
-
-    # under development
-    predict_method = corrcoef_supoort_ridge
-    # predict_method = dynamic_ridge_regression_single
-
     if input_lines is None or ecs_lines is None:
         return []
 
     machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines,flavors_unique)
 
-    predict,virtual_machine_sum = predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    predict,virtual_machine_sum = merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))
