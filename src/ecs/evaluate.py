@@ -298,7 +298,8 @@ if __name__ == '__main__':
     python27_path = "python"
     dirs = [int(x) for x in os.listdir(backtest_folder)]
     dirs = sorted(dirs)
-    temp_folder = 'temp'
+    import random
+    temp_folder = 'temp{}'.format(random.random())
 
     if os.path.exists(temp_folder):
         # os.removedirs(temp_folder)
