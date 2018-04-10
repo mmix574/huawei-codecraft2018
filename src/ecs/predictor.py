@@ -214,23 +214,29 @@ def ridge_full(ecs_logs,flavors_config,flavors_unique,training_start_time,traini
     N = 1
 
     X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,get_flatten=True)
-    
     X = vstack([X_train,X_test])
 
     X_square = square(X)
     _sum = sum(X,axis=1)
     X_rate = [multiply(X[i],1/float(_sum[i])) if _sum[i]!=0 else X[i]  for i in range(shape(X)[0])]
+    X_cube = [[math.pow(k,3) for k in x] for x in X]
 
-    X = hstack([X,X_square])
+    X = hstack([X])
 
     X = standard_scaling(X)
     X_train = X[:shape(X_train)[0]]
     X_test = X[shape(X_train)[0]:]
+    
 
-    clf = grid_search_cv(Ridge,{'alpha':[1e-2,1e-3,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,1,2,4,8,16]},X_train,Y_train,verbose=False)
-    clf.fit(X_train,Y_train)    
+    # X_val = X_train[-predict_days:]
+    # X_train = X_train[:-predict_days]
+    # Y_val = Y_train[-predict_days:]
+    # Y_train = Y_train[:-predict_days]
 
+    clf = grid_search_cv(Ridge,{'alpha':[0.03,0.04,0.05,0.06,0.07,0.08,0.09,1,2,4,8,16]},X_train,Y_train,verbose=False)
+    clf.fit(X_train,Y_train)
     result = clf.predict(X_test)[0]
+    
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]

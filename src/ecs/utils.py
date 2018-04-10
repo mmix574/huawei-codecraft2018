@@ -7,7 +7,7 @@ def parse_input_lines(input_lines):
 
     machine_config = {'cpu':None,'mem':None,'disk':None}
     flavors_number = 0
-    flavors = {}
+    flavors_config = {}
     optimized = 'CPU'
     predict_times = [] 
 
@@ -30,7 +30,7 @@ def parse_input_lines(input_lines):
             f,core,mem = int(f[f.find('r')+1:]),int(core),int(mem)
             # core = int(core)
             # mem = int(mem)
-            flavors[f]=(core,mem)
+            flavors_config[f]=(core,mem)
             flavors_unique.append(f)
         elif seg == 3:
             optimized = line.strip()
@@ -44,7 +44,7 @@ def parse_input_lines(input_lines):
     # important, do not delete
     flavors_unique = sorted(flavors_unique)
 
-    return machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time
+    return machine_config,flavors_number,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time
 
 def parse_ecs_lines(ecs_lines,flavors_unique):
     ecs_logs = []
