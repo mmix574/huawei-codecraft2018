@@ -3,7 +3,7 @@ import random
 
 from linalg.common import mean, minus, shape, sqrt, square
 from linalg.matrix import vstack
-from metrics import official_score
+from metrics import official_score,l2_loss
 
 
 def shuffle(X,y=None,random_state=None):
@@ -66,8 +66,10 @@ def train_test_split(X,y,test_size=0.2,random_state=None,align=None):
 
     return X_train,X_test,Y_train,Y_test
 
-def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='score',random_state=None,return_mean=False):
+def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='score',random_state=None,return_mean=False,verbose=False):
     assert((type(cv)==int and cv>1)or cv=='full')
+    assert(scoring=='score' or scoring=='loss')
+    
     if type(cv)==int:
         assert(cv<len(X))
     if is_shuffle:
@@ -78,7 +80,7 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
     h = len(X)/float(K)
 
     scores = []
-
+    losses = []
     for i in range(K):
         s = int(round((i*h)))
         e = int(round((i+1)*h))
@@ -94,24 +96,39 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
         
         p= estimator_instance.predict(X_val) 
         score = official_score(p,Y_val)
-
+        loss = l2_loss(p,Y_val)
         # score = estimator_instance.score(X_val,Y_val)
         scores.append(score)
-    std = sqrt(mean(square(minus(scores,mean(scores)))))
+        losses.append(loss)
+
     # print(scores)
     if return_mean:
-        return (sorted(scores)[len(scores)/2] + mean(scores) - 0.5*std)/2.0
-        # return max(scores)
-        # return mean(scores)
-        # return (mean(scores) + max(scores))/2.0
-        # return mean(scores) - std
-        # return mean(scores) -0.5*std
+        if scoring=='score':
+            std = sqrt(mean(square(minus(scores,mean(scores)))))
+            # return (sorted(scores)[len(scores)/2] + mean(scores) - 0.5*std)/2.0
+            return (sorted(scores)[len(scores)/2] + mean(scores) - std)/2.0
+            # return sorted(scores)[len(scores)/2] - std
+            # return max(scores)
+            # return mean(scores)
+            # return mean(sorted(scores)[::-1][:len(scores)/2])
+            # return (mean(scores) + max(scores))/2.0
+            # return mean(scores) - std
+            # return mean(scores) -0.5*std
+        elif scoring=='loss':
+            return mean(losses)
+
+            std = sqrt(mean(square(minus(losses,mean(losses)))))
+            return ((sorted(losses)[len(losses)/2] + mean(losses) - std)/2.0)
     else:
-        return scores
+        if scoring=='score':
+            return scores
+        elif scoring=='loss':
+            return losses
 
 
 # support for score only
 def grid_search_cv(estimator,paramaters,X,y,is_shuffle=False,cv='full',scoring='score',random_state=None,verbose=False,return_parameter=False):
+    assert(scoring=='score' or scoring=='loss')
     def paramater_gen(paramaters):
         N = len(paramaters)
         from itertools import product
@@ -122,19 +139,25 @@ def grid_search_cv(estimator,paramaters,X,y,is_shuffle=False,cv='full',scoring='
     max_model = None
     max_parameter = None
     max_score = None
-
+    min_loss = None
     for p in paramater_gen(paramaters):
         clf = estimator(**p)
         clf.fit(X,y)
         score = cross_val_score(clf,X,y,return_mean=True,is_shuffle=is_shuffle,cv=cv,scoring=scoring,random_state=random_state) 
         # clf.score(X,y)
         if verbose:
-            print(p,score)
+            # print(p,score)
+            pass
         
         if scoring == "score":
             if max_parameter==None or max_score<score:
                 max_parameter = p
                 max_score = score
+                max_model = clf
+        if scoring== "loss":
+            if max_parameter==None or min_loss>score:
+                max_parameter = p
+                min_loss = score
                 max_model = clf
     if verbose:
         print("max_parameter",max_parameter)

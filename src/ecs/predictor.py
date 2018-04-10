@@ -418,14 +418,17 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     predict_days = (predict_end_time-predict_start_time).days
 
     strike = 2
-    X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike)
-    # X_skip = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=2,skip=1)
-    # X = X_skip
+    X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
+    # X_skip = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=1)
 
-    # todo
     def outlier_handling(X):
-
-        pass
+        std_ = stdev(X)
+        mean_ = mean(X,axis=0)
+         
+        for i in range(shape(X)[0]):
+            for j in range(shape(X)[1]):
+               
+                pass
     
     def get_corrcorf_path(X,return_ith=False,k=3):
         coef_X = []
@@ -466,7 +469,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             feature_grid.append(fea)
 
 
-        feature_grid = fancy(feature_grid,-1,(-2,))
+        feature_grid = fancy(feature_grid,-1,(-4,))
         
         # print(shape(feature_grid))
         # print(shape(X))
@@ -475,8 +478,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         feature_grid_square = square(feature_grid)
         
         # feature_grid = hstack([feature_grid,coef_X[mapping_index[f]]])
+        feature_grid = hstack([feature_grid,coef_X[mapping_index[f]]])
         feature_grid = hstack([feature_grid,feature_grid_square])
-
 
         # ..filter the sparse feature by checking stdev..
         # std = stdev(feature_grid)
@@ -491,11 +494,12 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         # print(fancy(y,dim_0,mapping_index[f]))
 
 
-        feature_grid = standard_scaling(feature_grid)
+        # feature_grid = standard_scaling(feature_grid)
         # feature_grid = normalize(feature_grid,norm='l1')
         # feature_grid = normalize(feature_grid,norm='l2')
         # feature_grid = minmax_scaling(feature_grid)
-        # feature_grid = maxabs_scaling(feature_grid)
+        feature_grid = maxabs_scaling(feature_grid)
+    
 
         X_trainS.append(feature_grid[:-1])
         X_test_S.append(feature_grid[-1:])
@@ -504,7 +508,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     return X_trainS,Y_trainS,X_test_S
 
 # offline:
-# 0.51
 # 0.555144042315
 # online:
 # 56.898
@@ -547,6 +550,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         clf = grid_search_cv(Ridge,{'alpha':[0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,1,2,4,8,16,32,64],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
         # clf = Ridge(alpha=1,fit_intercept=True)
         clf.fit(X,y)
+
+
         result.append(clf.predict(X_test))
 
     result = matrix_transpose(result)[0]
