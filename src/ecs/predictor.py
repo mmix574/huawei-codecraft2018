@@ -429,6 +429,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             for j in range(shape(X)[1]):
                
                 pass
+    Y = X[1:]
     
     def get_corrcorf_path(X,return_ith=False,k=3):
         coef_X = []
@@ -440,9 +441,14 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             coef_X.append(fancy(X,-1,index))
         return coef_X
 
-    coef_X = get_corrcorf_path(X,k=2)
+    coef_X = get_corrcorf_path(X)
+
+    def get_rate_X(X):
+        sum_ = sum(X,axis=1)
+        return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
+
+    rate_X = get_rate_X(X)
     
-    Y = X[1:]
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
@@ -470,16 +476,15 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 
         feature_grid = fancy(feature_grid,-1,(-4,))
-        
-        # print(shape(feature_grid))
-        # print(shape(X))
-        # exit()
 
-        feature_grid_square = square(feature_grid)
-        
-        # feature_grid = hstack([feature_grid,coef_X[mapping_index[f]]])
+
         feature_grid = hstack([feature_grid,coef_X[mapping_index[f]]])
-        feature_grid = hstack([feature_grid,feature_grid_square])
+        # print(fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1)))
+
+        feature_grid = hstack([feature_grid,fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
+
+
+
 
         # ..filter the sparse feature by checking stdev..
         # std = stdev(feature_grid)
@@ -506,6 +511,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         Y_trainS.append(fancy(Y,-1,mapping_index[f]))
 
     return X_trainS,Y_trainS,X_test_S
+
+
 
 # offline:
 # 0.555144042315
@@ -547,10 +554,9 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
         X_test = X_test_S[mapping_index[f]]
-        clf = grid_search_cv(Ridge,{'alpha':[0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,1,2,4,8,16,32,64],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
+        clf = grid_search_cv(Ridge,{'alpha':[0.01,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,1,2,4,8,16,32],'fit_intercept':[True]},X,y,verbose=False,is_shuffle=False,scoring='score')
         # clf = Ridge(alpha=1,fit_intercept=True)
         clf.fit(X,y)
-
 
         result.append(clf.predict(X_test))
 
