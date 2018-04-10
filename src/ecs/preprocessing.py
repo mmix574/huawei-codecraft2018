@@ -91,9 +91,10 @@ def maxabs_scaling(X,axis=1):
     for j in range(shape(X)[1]):
         col = fancy(X,-1,j)     
         max_ = max(abs(col))
+        mean_ = mean(col)
         if max_ == 0:
             R.append(col)
         else:
-            R.append([(x)/(max_) for x in col])
+            R.append([(x-mean_)/(max_) for x in col])
                 
     return matrix_transpose(R)

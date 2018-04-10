@@ -427,3 +427,12 @@ def fancy(*argv):
         else:
             
             raise Exception
+
+# add @2018-04-10
+def apply(A,f):
+    if type(A) == list:
+        for a in A:
+            A = [apply(a,f) for a in A]
+        return A
+    else:
+        return f(A)

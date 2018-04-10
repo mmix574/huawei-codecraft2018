@@ -196,7 +196,7 @@ def matrix_reduce_mean(A,axis=None):
         return count/float(m*n)
 
 # add @2018-03-20
-def shift(A,shift_step):
+def shift(A,shift_step,fill=None):
     assert(dim(A)==2)
     R = zeros(shape(A))
     for i in range(shape(A)[0]):
@@ -205,12 +205,18 @@ def shift(A,shift_step):
                 if i>=shift_step:
                     R[i][j] = A[i-shift_step][j]
                 else:
-                    R[i][j] = None
+                    if type(fill)==list:
+                        R[i][j] = fill[j]
+                    else:
+                        R[i][j] = fill
             else:
                 if (i-shift_step)<shape(A)[0]:
                     R[i][j] = A[i-shift_step][j]
                 else:
-                    R[i][j] = None
+                    if type(fill)==list:
+                        R[i][j] = fill[j]
+                    else:
+                        R[i][j] = fill
     return R
 
 
