@@ -85,3 +85,15 @@ def standard_scaling(X,axis=1):
             R.append([(x-mean_)/std for x in col])    
     return matrix_transpose(R)
 
+def maxabs_scaling(X,axis=1):
+    assert(axis==1)
+    R = []
+    for j in range(shape(X)[1]):
+        col = fancy(X,-1,j)     
+        max_ = max(abs(col))
+        if max_ == 0:
+            R.append(col)
+        else:
+            R.append([(x)/(max_) for x in col])
+                
+    return matrix_transpose(R)

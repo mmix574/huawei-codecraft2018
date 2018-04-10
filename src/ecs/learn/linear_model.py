@@ -41,14 +41,14 @@ class LinearRegression:
             result = [x[0] for x in result]
         return result
 
-    # !! prepare to remove 
-    def score(self,X,y,scoring='mse'):
-        assert(scoring=='mse')
-        p = self.predict(X)
-        p_v = reshape(p,(-1,))
-        y_v = reshape(y,(-1,))
-        loss = sqrt(mean(square(minus(p_v,y_v))))
-        print('loss:',loss)
+    # # !! prepare to remove 
+    # def score(self,X,y,scoring='mse'):
+    #     assert(scoring=='mse')
+    #     p = self.predict(X)
+    #     p_v = reshape(p,(-1,))
+    #     y_v = reshape(y,(-1,))
+    #     loss = sqrt(mean(square(minus(p_v,y_v))))
+    #     print('loss:',loss)
 
 
 class Ridge:
@@ -90,11 +90,11 @@ class Ridge:
             result = [x[0] for x in result]
         return result
 
-    # !! prepare to remove 
-    def score(self,X,y,scoring='mse'):
-        assert(scoring=='mse')
-        p = self.predict(X)
-        p_v = reshape(p,(-1,))
-        y_v = reshape(y,(-1,))
-        loss = sqrt(mean(square(minus(p_v,y_v))))
-        print('loss:',loss)
+    # # !! prepare to remove 
+    # def score(self,X,y,scoring='mse'):
+    #     assert(scoring=='mse')
+    #     p = self.predict(X)
+    #     p_v = reshape(p,(-1,))
+    #     y_v = reshape(y,(-1,))
+    #     loss = sqrt(mean(square(minus(p_v,y_v))))
+    #     print('loss:',loss)

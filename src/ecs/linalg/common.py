@@ -6,9 +6,12 @@ def dim(A):
     assert(type(A)==list)
     d = 0
     B = A
-    while(type(B)==list and len(B)!=0):
+    while(type(B)==list):
         d += 1
-        B = B[0]
+        if len(B)!=0:
+            B = B[0]
+        else:
+            break
     return d
 # return the shape of a matrix or a tensor 
 
@@ -318,6 +321,8 @@ def mean(A,axis=None):
     if axis:
         assert(dim(A)>axis)
     if dim(A)==1:
+        if(len(A)==0):
+            return 0
         count = 0
         for i in range(len(A)):
             count+=A[i]
