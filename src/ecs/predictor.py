@@ -26,108 +26,129 @@ from linalg.matrix import stdev
 # fix bug 2018-04-02
 # modify @2018-03-28
 # sample[len(sample)-1] is latest frequency slicing 
-def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=None,N=1,get_flatten=True,argumentation=False,outlier_handling=False):
-    assert(frequency[len(frequency)-1]=='d')
-    assert((weekday_align==None and argumentation==False) or (weekday_align==None and argumentation==True) or (weekday_align!=None and argumentation==False))
+# def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=None,N=1,get_flatten=True,argumentation=False,outlier_handling=False):
+#     assert(frequency[len(frequency)-1]=='d')
+#     assert((weekday_align==None and argumentation==False) or (weekday_align==None and argumentation==True) or (weekday_align!=None and argumentation==False))
 
-    if type(weekday_align) == int:
-        predict_start_time = predict_start_time - timedelta(days=(weekday_align-predict_start_time.weekday()+7)%7)
+#     if type(weekday_align) == int:
+#         predict_start_time = predict_start_time - timedelta(days=(weekday_align-predict_start_time.weekday()+7)%7)
 
-    elif weekday_align != None:
-        predict_start_time = predict_start_time - timedelta(days=(weekday_align.weekday()-predict_start_time.weekday()+7)%7)
+#     elif weekday_align != None:
+#         predict_start_time = predict_start_time - timedelta(days=(weekday_align.weekday()-predict_start_time.weekday()+7)%7)
 
-    if argumentation == True:
-        X_train,Y_train,X_test = [],[],[]
-        for i in range(7):
-            x,y,z = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=i,N=N,get_flatten=get_flatten,argumentation=False)
-            X_train.extend(x)
-            Y_train.extend(y)
-            X_test = z            
-        return X_train,Y_train,X_test
+#     if argumentation == True:
+#         X_train,Y_train,X_test = [],[],[]
+#         for i in range(7):
+#             x,y,z = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=i,N=N,get_flatten=get_flatten,argumentation=False)
+#             X_train.extend(x)
+#             Y_train.extend(y)
+#             X_test = z            
+#         return X_train,Y_train,X_test
 
 
-    span_origin = int(frequency[:-1])
-    training_days = ((predict_start_time - training_start_time).days) +1 
+#     span_origin = int(frequency[:-1])
+#     training_days = ((predict_start_time - training_start_time).days) +1 
 
-    span = 7 if span_origin<=7 else 14
-    # print('training_days',training_days)
-    max_sample_length = training_days//span
+#     span = 7 if span_origin<=7 else 14
+#     # print('training_days',training_days)
+#     max_sample_length = training_days//span
 
-    sample = zeros((max_sample_length,len(flavors_unique)))
+#     sample = zeros((max_sample_length,len(flavors_unique)))
 
+#     mapping_index = get_flavors_unique_mapping(flavors_unique)
+
+#     for flavor,ecs_time in ecs_logs:
+#         ith = (predict_start_time - ecs_time).days//span
+
+#         # modify resample to align weekdays -- @2018-03-23
+#         if((predict_start_time - ecs_time).days%span>=span_origin):
+#             continue
+
+#         if ith >= len(sample):
+#             # filter some ecs_logs not enough for this frequency slicing
+#             continue
+#         if flavor not in flavors_unique:
+#             # filter some flavor not in the given flavors_unique
+#             continue
+#         # add count 
+#         sample[ith][mapping_index[flavor]] += 1
+
+#     # --------------------------
+#     sample = sample[::-1]
+#     # [       old data            ]
+#     # [                           ]
+#     # [                           ]
+#     # [                           ]
+#     # [       new_data            ]
+#     # --------------------------
+
+#     # handling outlier
+#     if outlier_handling:
+#         def processing_sample(sample):
+#             from preprocessing import stdev
+#             m = mean(sample,axis=1)
+#             std = stdev(sample)
+#             # sample_T = matrix_transpose(sample)
+#             removes = []
+#             for i in range(shape(sample)[0]):
+#                 for j in range(shape(sample)[1]):
+#                     if abs(sample[i][j]-m[j]) > 2*std[j]:
+#                         removes.append(i)
+#                         # sample[i][j] = m[j]
+#                         sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
+#                         # sample[i][j] = (4/5.0)*sample[i][j] + (1/5.0)*m[j]
+#                         # sample[i][j] = (7/8.0)*sample[i][j] + (1/8.0)*m[j]
+#                 # sample = [sample[i] for i in range(len(sample)) if i not in removes]
+#                 return sample
+#         sample = processing_sample(sample)
+
+#     def _XY_generate(sample,N=1,get_flatten=False,return_test=False):
+        
+#         X_train = []
+#         Y_train = []
+#         for i in range(N,len(sample)):
+#             X = [sample[i-N+k] for k in range(N)]
+#             if get_flatten:
+#                 X = flatten(X)
+#             y = sample[i]
+#             X_train.append(X)
+#             Y_train.append(y)
+
+#         X_test = [sample[len(sample)-N+k] for k in range(N)]
+
+#         if return_test:
+#             if get_flatten:
+#                 X_test = [flatten(X_test)]
+#             return X_train,Y_train,X_test
+#         else:
+#             return X_train,Y_train
+#     # end function
+
+#     X_train,Y_train,X_test = _XY_generate(sample,N=N,get_flatten=get_flatten,return_test=True)
+#     return X_train,Y_train,X_test 
+
+
+# add @2018-04-10
+# refactoring, do one thing
+def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=7,strike=3,skip=1):
+    predict_start_time = predict_start_time-timedelta(days=skip)
+    days_total = (predict_start_time-training_start_time).days
+
+    sample_length = (days_total-frequency)/strike
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
-    for flavor,ecs_time in ecs_logs:
-        ith = (predict_start_time - ecs_time).days//span
-
-        # modify resample to align weekdays -- @2018-03-23
-        if((predict_start_time - ecs_time).days%span>=span_origin):
-            continue
-
-        if ith >= len(sample):
-            # filter some ecs_logs not enough for this frequency slicing
-            continue
-        if flavor not in flavors_unique:
-            # filter some flavor not in the given flavors_unique
-            continue
-        # add count 
-        sample[ith][mapping_index[flavor]] += 1
-
-    # --------------------------
+    sample = zeros((sample_length,len(flavors_unique)))
+    
+    for i in range(sample_length):
+        for f,ecs_time in ecs_logs:
+            if (predict_start_time-ecs_time).days >(i)*strike and (predict_start_time-ecs_time).days<(i+1)*strike+frequency:
+                sample[i][mapping_index[f]] += 1
     sample = sample[::-1]
-    # [       old data            ]
-    # [                           ]
-    # [                           ]
-    # [                           ]
-    # [       new_data            ]
-    # --------------------------
 
-    # handling outlier
-    if outlier_handling:
-        def processing_sample(sample):
-            from preprocessing import stdev
-            m = mean(sample,axis=1)
-            std = stdev(sample)
-            # sample_T = matrix_transpose(sample)
-            removes = []
-            for i in range(shape(sample)[0]):
-                for j in range(shape(sample)[1]):
-                    if abs(sample[i][j]-m[j]) > 2*std[j]:
-                        removes.append(i)
-                        # sample[i][j] = m[j]
-                        sample[i][j] = (1/3.0)*sample[i][j] + (2/3.0)*m[j]
-                        # sample[i][j] = (4/5.0)*sample[i][j] + (1/5.0)*m[j]
-                        # sample[i][j] = (7/8.0)*sample[i][j] + (1/8.0)*m[j]
-                # sample = [sample[i] for i in range(len(sample)) if i not in removes]
-                return sample
-        sample = processing_sample(sample)
+    assert(shape(sample)==(sample_length,len(flavors_unique)))
+    return sample
 
-    def _XY_generate(sample,N=1,get_flatten=False,return_test=False):
-        
-        X_train = []
-        Y_train = []
-        for i in range(N,len(sample)):
-            X = [sample[i-N+k] for k in range(N)]
-            if get_flatten:
-                X = flatten(X)
-            y = sample[i]
-            X_train.append(X)
-            Y_train.append(y)
-
-        X_test = [sample[len(sample)-N+k] for k in range(N)]
-
-        if return_test:
-            if get_flatten:
-                X_test = [flatten(X_test)]
-            return X_train,Y_train,X_test
-        else:
-            return X_train,Y_train
-    # end function
-
-    X_train,Y_train,X_test = _XY_generate(sample,N=N,get_flatten=get_flatten,return_test=True)
-    return X_train,Y_train,X_test 
-
-
+# # freezed prepare
 # def normaling(X_train,Y_train,X_test,normalize_method='standard_scaling',norm='l1'):
 #     assert(normalize_method=='normalize' or normalize_method=='minmax_scaling' or normalize_method=='standard_scaling')
 #     N = shape(X_train)[0]
@@ -202,6 +223,8 @@ def smoothing(ecs_logs,flavors_config,flavors_unique,training_start_time,trainin
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
 
+
+# 65.092
 def ridge_full(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -226,7 +249,6 @@ def ridge_full(ecs_logs,flavors_config,flavors_unique,training_start_time,traini
     X = standard_scaling(X)
     X_train = X[:shape(X_train)[0]]
     X_test = X[shape(X_train)[0]:]
-    
 
     # X_val = X_train[-predict_days:]
     # X_train = X_train[:-predict_days]
@@ -236,7 +258,7 @@ def ridge_full(ecs_logs,flavors_config,flavors_unique,training_start_time,traini
     clf = grid_search_cv(Ridge,{'alpha':[0.03,0.04,0.05,0.06,0.07,0.08,0.09,1,2,4,8,16]},X_train,Y_train,verbose=False)
     clf.fit(X_train,Y_train)
     result = clf.predict(X_test)[0]
-    
+
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
@@ -244,7 +266,7 @@ def ridge_full(ecs_logs,flavors_config,flavors_unique,training_start_time,traini
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
 
-
+# 0.505056449986 validation_set score
 def ridge_single(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -254,10 +276,21 @@ def ridge_single(ecs_logs,flavors_config,flavors_unique,training_start_time,trai
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
     
-    N = 4
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=2)
+    X = vstack([X_train,X_test])
 
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,get_flatten=True)
-    X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='normalize',norm='l1')
+
+    # feature engineering ..
+
+    
+    X = standard_scaling(X)
+    X_train = X[:shape(X_train)[0]]
+    X_test = X[shape(X_train)[0]:]
+
+    X_val = X_train[-predict_days:]
+    X_train = X_train[:-predict_days]
+    Y_val = Y_train[-predict_days:]
+    Y_train = Y_train[:-predict_days]
 
     clfs = []
     for i in range(shape(Y_train)[1]):
@@ -274,8 +307,6 @@ def ridge_single(ecs_logs,flavors_config,flavors_unique,training_start_time,trai
         result.append(clfs[i].predict(X_))
 
     result = matrix_transpose(result)[0]
-
-    # result = clf.predict(X_test)[0]
     result = [0 if r<0 else r*(predict_days/float(predict_days)) for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
@@ -405,17 +436,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    N = 1
-    X_train_raw,Y_train_raw,X_test_raw  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days-1),N=N,argumentation=True,outlier_handling=False)
-    # X_train_raw,Y_train_raw,X_test_raw = normaling(X_train_raw,Y_train_raw,X_test_raw,normalize_method='normalize',norm='l1')
-    # X_train_raw,Y_train_raw,X_test_raw = normaling(X_train_raw,Y_train_raw,X_test_raw,normalize_method='standard_scaling')
-    print(X_train_raw)
-    print(Y_train_raw)
-    exit()
-    
-    corrcoef_of_data = corrcoef(X_train_raw)
-
-    X,y = vstack([X_train_raw,X_test_raw]),Y_train_raw
+    X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=1)
+    Y = X[1:]
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
@@ -430,15 +452,17 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             fea.extend(history[:i+1])
 
             feature_grid.append(fea)
-        feature_dense_precent = 0.8
-        data_dense_precent = 0.8
         
         n_features = shape(feature_grid)[1]
         n_samples = shape(feature_grid)[0]
-        dim_0 = (int(n_samples* ((1-feature_dense_precent) * data_dense_precent)),shape(feature_grid)[0])
-        dim_1 = (int(feature_dense_precent*n_features),shape(feature_grid)[1])
+        # dim_0 = (int(n_samples* ((1-feature_dense_precent) * data_dense_precent)),shape(feature_grid)[0])
+        # dim_1 = (int(feature_dense_precent*n_features),shape(feature_grid)[1])
+        # print(dim_0)
+        # print(dim_1)
+        # print(shape(feature_grid))
+        
+        feature_grid = fancy(feature_grid,-1,-1)
 
-        feature_grid = fancy(feature_grid,dim_0,dim_1)
         # feature_grid:
         # (n_samples,n_features) 
         # [-----------|----------1]
@@ -454,25 +478,22 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         # feature_grid = fancy(feature_grid,-1,drop)
 
         # ... other preprocessing ..
-        print(shape(feature_grid[:-shape(X_train_raw)[0]]))
-        print(shape(feature_grid[-shape(X_train_raw)[0]:]))
+        # print(shape(feature_grid[:-shape(X_test_raw)[0]]))
+        # print(shape(feature_grid[-shape(X_test_raw)[0]:]))
         # print(fancy(y,dim_0,mapping_index[f]))
-        
-        exit()
-
-        X_trainS.append(feature_grid[:-shape(X_train_raw)[0]])
-        X_test_S.append(feature_grid[-shape(X_train_raw)[0]:])
-        Y_trainS.append(fancy(y,dim_0,mapping_index[f]))
+        # exit()
+        feature_grid = standard_scaling(feature_grid)
+        X_trainS.append(feature_grid[:-1])
+        X_test_S.append(feature_grid[-1:])
+        Y_trainS.append(fancy(Y,-1,mapping_index[f]))
 
     return X_trainS,Y_trainS,X_test_S
 
-def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False):
-    return Y_train[-1]
-    scores = []
-    result = []
-    return result,scores
-
-
+# offline:
+# 0.51
+# 0.555144042315
+# online:
+# 
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -492,14 +513,13 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     #     predict[f] = int(round(p))
     #     virtual_machine_sum += int(round(p))
     # return predict,virtual_machine_sum
-    
 
     # ------------------------------------#
     # predict_method = simple
     # predict_method = smoothing
     # predict_method = ridge_single
-    predict_method = ridge_full
-    return predict_method(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    # predict_method = ridge_full
+    # return predict_method(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
     
     # predict_method = corrcoef_supoort_ridge
     # predict_method = features_ridge
@@ -510,10 +530,9 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
         X_test = X_test_S[mapping_index[f]]
-
-        clf = Ridge(alpha=0.01,fit_intercept=False)
+        clf = grid_search_cv(Ridge,{'alpha':[0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,1,2,3,4,5,6,7,8],'fit_intercept':[True]},X,y,verbose=False)
+        # clf = Ridge(alpha=1,fit_intercept=True)
         clf.fit(X,y)
-        # clf = grid_search_cv(Ridge,{'alpha':[1e-1,1e-2,1e-3,1e-4,1,2,4,8],'fit_intercept':[False]},X,y,verbose=False)
         result.append(clf.predict(X_test))
 
 

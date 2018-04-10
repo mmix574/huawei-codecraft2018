@@ -100,8 +100,8 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
     std = sqrt(mean(square(minus(scores,mean(scores)))))
     # print(scores)
     if return_mean:
-        # return sorted(scores)[len(scores)/2] + mean(scores) - std
-        return mean(scores)
+        return (sorted(scores)[len(scores)/2] + mean(scores) - std)/2.0
+        # return mean(scores)
         # return mean(scores) - std
     else:
         return scores
