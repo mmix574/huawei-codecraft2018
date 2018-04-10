@@ -74,3 +74,8 @@ def get_flavors_unique_mapping(flavors_unique):
         mapping_index[f] = c
         c+=1
     return mapping_index
+
+
+def get_machine_config(flavors_unique):
+    
+    pass

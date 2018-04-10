@@ -128,27 +128,27 @@ def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,freq
     return X_train,Y_train,X_test 
 
 
-def normaling(X_train,Y_train,X_test,normalize_method='standard_scaling',norm='l1'):
-    assert(normalize_method=='normalize' or normalize_method=='minmax_scaling' or normalize_method=='standard_scaling')
-    N = shape(X_train)[0]
-    X = vstack([X_train,X_test])
+# def normaling(X_train,Y_train,X_test,normalize_method='standard_scaling',norm='l1'):
+#     assert(normalize_method=='normalize' or normalize_method=='minmax_scaling' or normalize_method=='standard_scaling')
+#     N = shape(X_train)[0]
+#     X = vstack([X_train,X_test])
 
-    if normalize_method=='normalize':
-        # 55.08
-        X = normalize(X,norm=norm)
-    elif normalize_method=='minmax_scaling':
-        # 56.308
-        X = minmax_scaling(X)
-    elif normalize_method=='standard_scaling':
-        # 59.661
-        X = standard_scaling(X)
+#     if normalize_method=='normalize':
+#         # 55.08
+#         X = normalize(X,norm=norm)
+#     elif normalize_method=='minmax_scaling':
+#         # 56.308
+#         X = minmax_scaling(X)
+#     elif normalize_method=='standard_scaling':
+#         # 59.661
+#         X = standard_scaling(X)
     
-    X_train = X[:N]
-    X_test = X[N:]
-    return X_train,Y_train,X_test
+#     X_train = X[:N]
+#     X_test = X[N:]
+#     return X_train,Y_train,X_test
 
 
-def simple(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def simple(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -175,7 +175,7 @@ def simple(ecs_logs,flavors_unique,training_start_time,training_end_time,predict
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
 
-def smoothing(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def smoothing(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -202,7 +202,7 @@ def smoothing(ecs_logs,flavors_unique,training_start_time,training_end_time,pred
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
 
-def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def ridge_full(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -213,13 +213,21 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
     
     N = 1
 
-    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=False,get_flatten=True)
-    X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='normalize')
-    # X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='minmax_scaling')
-    # X_train,Y_train,X_test = normaling(X_train,Y_train,X_test,normalize_method='standard_scaling')
+    X_train,Y_train,X_test  = resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='{}d'.format(predict_days),N=N,argumentation=True,get_flatten=True)
+    
+    X = vstack([X_train,X_test])
 
-    # clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,1,2,3,4,5,6,7,8,9,10]},X_train,Y_train,verbose=False)
-    clf = Ridge()
+    X_square = square(X)
+    _sum = sum(X,axis=1)
+    X_rate = [multiply(X[i],1/float(_sum[i])) if _sum[i]!=0 else X[i]  for i in range(shape(X)[0])]
+
+    X = hstack([X,X_square])
+
+    X = standard_scaling(X)
+    X_train = X[:shape(X_train)[0]]
+    X_test = X[shape(X_train)[0]:]
+
+    clf = grid_search_cv(Ridge,{'alpha':[1e-2,1e-3,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,1,2,4,8,16]},X_train,Y_train,verbose=False)
     clf.fit(X_train,Y_train)    
 
     result = clf.predict(X_test)[0]
@@ -231,7 +239,7 @@ def ridge_full(ecs_logs,flavors_unique,training_start_time,training_end_time,pre
     return predict,virtual_machine_sum
 
 
-def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def ridge_single(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -270,7 +278,7 @@ def ridge_single(ecs_logs,flavors_unique,training_start_time,training_end_time,p
     return predict,virtual_machine_sum
 
 
-def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def corrcoef_supoort_ridge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -353,7 +361,7 @@ def corrcoef_supoort_ridge(ecs_logs,flavors_unique,training_start_time,training_
 
 
 
-def features_ridge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def features_ridge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -383,7 +391,7 @@ def features_ridge(ecs_logs,flavors_unique,training_start_time,training_end_time
 
 # add @ 2018-04-09 
 # zero padding feature extraction
-def features_building(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -459,7 +467,7 @@ def new_feature(X_train,Y_train,X_test,X_val=None,return_validation_score=False)
     return result,scores
 
 
-def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
@@ -484,10 +492,13 @@ def merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_
     # predict_method = simple
     # predict_method = smoothing
     # predict_method = ridge_single
-    # predict_method = ridge_full
+    predict_method = ridge_full
+    return predict_method(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    
     # predict_method = corrcoef_supoort_ridge
     # predict_method = features_ridge
-    X_trainS,Y_trainS,X_test_S = features_building(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+
+    X_trainS,Y_trainS,X_test_S = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
     result = [] 
     for f in flavors_unique:
         X = X_trainS[mapping_index[f]]
@@ -515,10 +526,10 @@ def predict_vm(ecs_lines,input_lines):
     if input_lines is None or ecs_lines is None:
         return []
 
-    machine_config,flavors_number,flavors,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
+    machine_config,flavors_number,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines,flavors_unique)
 
-    predict,virtual_machine_sum = merge(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    predict,virtual_machine_sum = merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))
@@ -528,7 +539,7 @@ def predict_vm(ecs_lines,input_lines):
     result.append('') # output '\n'
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
-    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors,flavors_unique,predict,optimized,k=1000)
+    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=1000)
     
     
     # todo 
