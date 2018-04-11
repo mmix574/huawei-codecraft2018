@@ -177,60 +177,13 @@ def predict_summary(predict_result):
     flavors_unique = flavors_unique[0]
     # comnpute each score of predictions
     scores = [_partial_score_predict(predict[i],actual[i]) for i in range(len(predict))]
+    
+    if len(scores)==1:
+        print(predict[0])
+        print(actual[0])
 
-    print('diff:')
-    print(flavors_unique)
-    print('(PS:positive if predict is more than actual)')
-    print('')
-    diff = []
-    diff_sum = [0 for x in flavors_unique]
-    L1_sum = [0 for x in flavors_unique] 
-    L2_sum = [0 for x in flavors_unique]
-    # compute loss for flavor unique
-    # bear with me 
-    for i in range(len(predict)):
-        p = list(predict[i].values())
-        a = list(actual[i].values())
-        _ = minus(p,a)
-        diff.append(_)
-
-        for j in range(len(flavors_unique)):
-            L1_sum[j] += abs(_[j])
-            L2_sum[j] += _[j]**2
-            diff_sum[j] += _[j]
-
-    for d in diff:
-        print(d)
-
-    diff_mean = [x/float(len(diff_sum)) for x in diff_sum]
-    diff_var = [minus(diff[i],diff_mean) for i in range(len(diff))]
-    diff_var = [squrt(row) for row in diff_var]
-    diff_var = matrix_sum(diff_var)
-    diff_var = [x/float(len(diff)) for x in diff_var]
-    print(diff_var)
-    print('\ndiff mean')
-    print(['%.2f' %(x/float(len(flavors_unique))) for x in diff_mean])
-    print('diff var')
-    print(['%.2f' %(x/float(len(flavors_unique))) for x in diff_var])
-    print('\n-----')
-    print('L1 loss_sum:')
-    print(L1_sum)
-    print('\n-----')
-    print('L2 loss_sum:(important)')
-    print(L2_sum)
-    print('L2_sum_mean(important)')
-    print(['%.2f' %(x/float(len(flavors_unique))) for x in L2_sum])
-    print('\n-----')
-    print(scores)
-    print('finalscore_max-->',max(scores))
     print('finalscore-->',mean(scores))
 
-
-    # matplotlib summary 
-    # import numpy as np
-    # import matplotlib.pyplot as plt
-    # plt.bar(range(len(L2_sum)),np.array(L2_sum))
-    # plt.show()
 
     return scores
 
