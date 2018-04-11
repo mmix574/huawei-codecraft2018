@@ -75,6 +75,15 @@ def get_flavors_unique_mapping(flavors_unique):
     return mapping_index
 
 
-def get_machine_config(flavors_unique):
-    
-    pass
+def get_machine_config(flavors_unique,return_normal=True):
+    config = {1:(1,1024),2:(1,2048),3:(1,4096),4:(2,2048),5:(2,4096),6:(2,8192),7:(4,4096),8:(4,8192),9:(4,16384),10:(8,8192),11:(8,16384),12:(8,32768),13:(16,16384),14:(16,32768),15:(16,65536)}
+    cpu_config,mem_config = [],[]
+    for f in flavors_unique:
+        cpu_config.append(config[f][0])
+
+        if return_normal:
+            mem_config.append(config[f][1]/1024)
+        else:
+            mem_config.append(config[f][1])
+
+    return cpu_config,mem_config

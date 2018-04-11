@@ -47,7 +47,6 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     # [                           ]
     # [       new_data            ]
     # ----------------------------#
-
     assert(shape(sample)==(sample_length,len(flavors_unique)))
     return sample
 
@@ -93,20 +92,20 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             return coef_X,paths
         else:
             return coef_X
+    coef_X,paths = get_corrcorf_path(X,return_path=True,k=3)
 
-    coef_X,paths = get_corrcorf_path(X,return_path=True)
 
     def get_rate_X(X):
         sum_ = sum(X,axis=1)
         return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
     rate_X = get_rate_X(X)
 
+    from utils import get_machine_config
     def get_cpu_X(X):
-        
-        pass
+        cpu_config,mem_config = get_machine_config(flavors_unique)
+                
+        return X
 
-    # diff_X = minus(X,shift(X,1,fill=0))
-    # diff_X_2 = minus(X,shift(X,2,fill=0))
     
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
@@ -156,12 +155,12 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         add_list= [feature_grid]
 
         add_list.extend([feature_grid_sqrt,feature_grid_log1p,feature_grid_square])
+        # add_list.extend([coef_X[mapping_index[f]] , fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
+        
         add_list.extend([coef_X[mapping_index[f]] , fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
 
         feature_grid = hstack(add_list)
 
-        # feature_grid = hstack([feature_grid,get_col(diff_X,mapping_index[f])])
-        # feature_grid = hstack([feature_grid,get_col(diff_X_2,mapping_index[f])])
         
 
         # ---------------------------------------------
@@ -179,11 +178,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         
         # ---------------------------------------------
         # normalizing,scaling..
-        # feature_grid = normalize(feature_grid,norm='l1') #0.572884203014 0.593898128226  0.716294303441
-        # feature_grid = normalize(feature_grid,norm='l2') #0.564134720247 0.620964076788 0.664466379897
-        # feature_grid = minmax_scaling(feature_grid) #0.498931703737 0.519933525422 (test good) 0.794159038136
-        feature_grid = maxabs_scaling(feature_grid) #0.494858535164 0.589982815641 0.787027762262
-        # feature_grid = standard_scaling(feature_grid) #0.492486341694 0.441285064425 0.579265952486
+        # feature_grid = normalize(feature_grid,norm='l1')
+        # feature_grid = normalize(feature_grid,norm='l2')
+        # feature_grid = minmax_scaling(feature_grid) 
+        feature_grid = maxabs_scaling(feature_grid)
+        # feature_grid = standard_scaling(feature_grid)
 
         
         # linear relation filtering
@@ -214,7 +213,6 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_trainS,Y_trainS,X_test_S = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
     
     # train test split
-    
     result = []
     clfs = []
 

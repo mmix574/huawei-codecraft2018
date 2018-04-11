@@ -144,6 +144,12 @@ def hstack(list_of_matrix):
     assert(type(list_of_matrix)==list and len(list_of_matrix)>0)
     high = shape(list_of_matrix[0])[0]
     stacking_length = []
+
+    # add @2018-04-11
+    for i in range(len(list_of_matrix)):
+        if dim(list_of_matrix[i])==1:
+            list_of_matrix[i] = [[x] for x in list_of_matrix[i]]
+
     for i in range(len(list_of_matrix)):
         assert(dim(list_of_matrix[i])==2)
         assert(shape(list_of_matrix[i])[0]==high)
