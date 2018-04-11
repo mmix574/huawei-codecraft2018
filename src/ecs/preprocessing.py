@@ -1,10 +1,9 @@
 from __future__ import print_function
 
-from linalg.common import dim,shape,zeros,multiply
-from linalg.common import mean,minus,square,shape,abs,sqrt
-from linalg.matrix import matrix_transpose,matrix_copy
+from linalg.common import (abs, dim, fancy, mean, minus, multiply, plus, shape,
+                           sqrt, square, zeros)
+from linalg.matrix import matrix_copy, matrix_transpose
 
-from linalg.common import fancy
 
 def stdev(X):
     # X = matrix_copy(X)
@@ -99,12 +98,10 @@ def maxabs_scaling(X,axis=1):
                 
     return matrix_transpose(R)
 
-
+# 
 # def weight_decay_smoothing(X,axis=0,weight=0.5):
 #     assert(axis==0)
 
-
-from linalg.common import plus
 def exponential_smoothing(A,axis=0,alpha=0.1):
     assert(axis==0)
     R = []

@@ -55,7 +55,7 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 
 
 # add @ 2018-04-09 
-# sample:
+# X:
 #   f1 f2 f3 f4 f5 f6 ...
 # t1[---------------------]
 # t2[---------------------]
@@ -81,10 +81,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
     Y = X[1:]
 
-    def outlier_handling(X,method='mean'):
+    def outlier_handling(sample,method='mean'):
         assert(method=='mean' or method=='zero')
-        std_ = stdev(X)
-        mean_ = mean(X,axis=1)
+        X = matrix_copy(sample)
+        std_ = stdev(sample)
+        mean_ = mean(sample,axis=1)
         for i in range(shape(X)[0]):
             for j in range(shape(X)[1]):
                if X[i][j]-mean_[j] >3*std_[j]:
@@ -93,39 +94,51 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                     elif method=='zero':
                         X[i][j] = 0
         return X
-
+    
     if outlier_handeling:
         X = outlier_handling(X,method='mean')
-
-    def get_corrcorf_path(X,return_ith=False,k=3,return_path=True):
-        coef_X = []
-        paths = []
+    
+    def flavor_clustering(X,k=3,variance_threshold=None):
         corrcoef_X = corrcoef(X)
+        clustering_paths = []
+        coef_X = []
         for i in range(shape(X)[1]):
             col = corrcoef_X[i]
             col_index_sorted = argsort(col)[::-1]
-            index = col_index_sorted[1:k]
-            coef_X.append(fancy(X,None,index))
-            paths.append(index)
+            if variance_threshold!=None:
+                index = [i  for i in col_index_sorted if col[i]>variance_threshold]
+            else:
+                index = col_index_sorted[1:k+1]
+            coef = fancy(col,index)
+            coef_X.append(coef)
 
-        if return_path:
-            return coef_X,paths
-        else:
-            return coef_X
-    coef_X,paths = get_corrcorf_path(X,return_path=True,k=5)
+            clustering_paths.append(index)
+        return clustering_paths,coef_X
 
-    def get_rate_X(X):
-        sum_ = sum(X,axis=1)
-        return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
-    rate_X = get_rate_X(X)
+    clustering_paths,coef_X = flavor_clustering(X)
 
+
+    def get_feature_grid(X,i,fill_na='mean',max_na_rate=1):
+        assert(fill_na=='mean' or fill_na=='zero')
+        
+
+        pass
+
+    # 2018-04-12
+    # handcraft feature engineering ..       
+    # -------------------
     from utils import get_machine_config
-    def get_cpu_X(X):
-        cpu_config,mem_config = get_machine_config(flavors_unique)
+    def get_rate_X(X):
+        pass
+    #     sum_ = sum(X,axis=1)
+    #     return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
+    # rate_X = get_rate_X(X)
 
-        return X
-    def get_smoothing_X(X):
-        return X
+
+    # def get_cpu_X(X):
+    #     cpu_config,mem_config = get_machine_config(flavors_unique)
+
+    #     return X
 
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
@@ -170,8 +183,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         add_list.extend([feature_grid_sqrt])
         add_list.extend([feature_grid_log1p]) # 77.998
         add_list.extend([feature_grid_square])
-        add_list.extend([coef_X[mapping_index[f]]])
-        add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
+        # add_list.extend([coef_X[mapping_index[f]]])
+        # add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
         feature_grid = hstack(add_list)
 
         # exit()
@@ -201,10 +214,10 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     return X_trainS,Y_trainS,X_test_S
 
 
-
-    # nclf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=True)
-    # nclf = Dynamic_KNN_Regressor(k=3,verbose=False)
-    # nclf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[True]},nx,ny,verbose=True,is_shuffle=False,scoring='loss')
+# code backup..
+# nclf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=True)
+# nclf = Dynamic_KNN_Regressor(k=3,verbose=False)
+# nclf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[True]},nx,ny,verbose=True,is_shuffle=False,scoring='loss')
 
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,verbose = True):
     predict = {}.fromkeys(flavors_unique)
