@@ -44,6 +44,7 @@ class Dynamic_KNN_Regressor:
         self.shape_X = None
         self.shape_Y = None
 
+        self.verbose = verbose
 
     def fit(self,X,y):
         self.X = X
@@ -64,6 +65,9 @@ class Dynamic_KNN_Regressor:
             loss = sum(square(minus(self.X,x)),axis=1)
             
             index = argsort(loss)[:self.k]
+            if self.verbose:
+                print(index)
+
 
             ys = []
             for i in index:

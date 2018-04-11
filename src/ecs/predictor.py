@@ -95,7 +95,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
     rate_X = get_rate_X(X)
 
-
     from utils import get_machine_config
     def get_cpu_X(X):
         cpu_config,mem_config = get_machine_config(flavors_unique)
@@ -130,13 +129,13 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             # else:
             #     m = sorted(history[:i+1])[len(history[:i+1])/2]
 
-            m = mean(history[:i+1])
-            fea.extend([m for _ in range(len(history)-1-i)])
+            # m = mean(history[:i+1])
+            # fea.extend([m for _ in range(len(history)-1-i)])
             # fea.extend([0 for _ in range(len(history)-1-i)])
             fea.extend(history[:i+1])
             feature_grid.append(fea)
 
-        feature_grid = fancy(feature_grid,None,(-1,))
+        feature_grid = fancy(feature_grid,None,(-2,))
 
         # max_zero_percent = 1
         # keep = []
@@ -158,7 +157,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         add_list.extend([feature_grid_log1p]) # 77.998
         add_list.extend([feature_grid_square])
         add_list.extend([coef_X[mapping_index[f]]])
-        # add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
+        add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
 
         feature_grid = hstack(add_list)
 
@@ -213,9 +212,9 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     from learn.knn import Dynamic_KNN_Regressor
     # nclf = KNN_Regressor(k=4)
 
-    nclf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=True)
+    # nclf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=True)
     
-    # nclf = Dynamic_KNN_Regressor(k=15)
+    nclf = Dynamic_KNN_Regressor(k=3,verbose=False)
     # nclf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[True]},nx,ny,verbose=True,is_shuffle=False,scoring='loss')
     nclf.fit(nx,ny)
 
