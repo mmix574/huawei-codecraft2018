@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timedelta
 
 from backpack import backpack_random_k_times
+from learn.knn import KNN_Regressor
 from learn.lasso import Lasso
 from learn.linear_model import LinearRegression, Ridge
 from linalg.common import (apply, dim, dot, fancy, flatten, mean, minus,
@@ -12,11 +13,9 @@ from linalg.common import (apply, dim, dot, fancy, flatten, mean, minus,
 from linalg.matrix import (corrcoef, hstack, matrix_copy, matrix_matmul,
                            matrix_transpose, shift, stdev, vstack)
 from linalg.vector import arange, argsort, count_nonezero
-
 from metrics import l2_loss, official_score
 from model_selection import cross_val_score, grid_search_cv, train_test_split
 from predictions.base import BasePredictor
-
 from preprocessing import (maxabs_scaling, minmax_scaling, normalize,
                            standard_scaling)
 from utils import (get_flavors_unique_mapping, parse_ecs_lines,
@@ -63,7 +62,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     strike = 1
     X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
-    Y = X[1:]
 
     def outlier_handling(X):
         std_ = stdev(X)
@@ -72,10 +70,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             for j in range(shape(X)[1]):
                if X[i][j]-mean_[j] >3*std_[j]:
                    X[i][j] = mean_[j]
-                #    X[i][j] = 0
-                #    X[i][j] = sqrt(X[i][j])
         return X
     X = outlier_handling(X)
+
+    from copy import deepcopy
+    Y = deepcopy(X[1:])
 
     def get_corrcorf_path(X,return_ith=False,k=3,return_path=True):
         coef_X = []
@@ -199,7 +198,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 
 
-from learn.knn import KNN_Regression      
 
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
@@ -220,8 +218,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         X_test = X_test_S[mapping_index[f]]
         # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4,8],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
         # clf = Ridge(alpha=1,fit_intercept=False)
-        clf = KNN_Regression(k=4)
-
+        clf = KNN_Regressor(k=4,dynamic=False)
+        # clf = grid_search_cv(KNN_Regressor,{'k':[1,2,3,4]},X,y,verbose=False,is_shuffle=False,scoring='score')
         clf.fit(X,y)
         clfs.append(clf)
         result.append(clf.predict(X_test))

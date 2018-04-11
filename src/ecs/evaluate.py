@@ -359,7 +359,7 @@ if __name__ == '__main__':
         # execute command
         # print('command\n','{} {} {} {} {}'.format(python27_path,'ecs.py',esc_logs_path,input_file_path,output_file_path))
         os.system('{} {} {} {} {}'.format(python27_path,'ecs.py',esc_logs_path,input_file_path,output_file_path))
-        
+
         testing_file_path = '{}/{}/{}'.format(backtest_folder,str(i),'test.txt')
         if not (os.path.exists(output_file_path) and os.path.exists(testing_file_path)):
             print('bad~')

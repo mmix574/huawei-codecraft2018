@@ -271,3 +271,11 @@ def stdev(X,axis=1):
     for j in range(shape(X)[1]):
         R.append(sqrt(mean(square(minus(X_T[j],m[j])))))
     return R
+
+# add @ 2018-04-11
+def diag(A):
+    assert(dim(A)==1)
+    R = zeros((shape(A)[0],shape(A)[0]))
+    for i in range(len(A)):
+        R[i][i] = A[i]
+    return R

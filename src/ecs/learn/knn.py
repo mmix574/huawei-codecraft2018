@@ -1,19 +1,23 @@
 from linalg.common import dim,square,minus,mean,sum
 from linalg.vector import argsort
 
-class KNN_Regression:
-    def __init__(self,k=3):
+from linalg.matrix import diag
+
+class KNN_Regressor:
+    def __init__(self,k=3,dynamic=True):
         self.X = None
         self.y = None
         self.k = k
+        self.dynamic = dynamic
+
     def fit(self,X,y):
         self.X = X
         self.y = y
+        
     def predict(self,X):
         result = []
         # dim_X = dim(X)
-
-
+        
         if dim(X) == 1:
             X = [X]
         for x in X:
@@ -23,5 +27,5 @@ class KNN_Regression:
             for i in index:
                 ys.append(self.y[i])
             result.append(mean(ys,axis=0))
-            
+
         return result  
