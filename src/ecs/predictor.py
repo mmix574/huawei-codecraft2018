@@ -51,17 +51,15 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 
 
 # add @ 2018-04-09 
-# zero padding feature extraction
-# 74.103 online score 2018-04-09 
-# 78.184
-# 75.581 outlier remove
-# magical feature engineering 
 def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
     strike = 1
     X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
+
+    # from copy import deepcopy
+    # Y = deepcopy(X[1:])
 
     def outlier_handling(X):
         std_ = stdev(X)
@@ -72,9 +70,10 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                    X[i][j] = mean_[j]
         return X
     X = outlier_handling(X)
+    Y = X[1:]
+    # exit()
 
-    from copy import deepcopy
-    Y = deepcopy(X[1:])
+
 
     def get_corrcorf_path(X,return_ith=False,k=3,return_path=True):
         coef_X = []
@@ -98,6 +97,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         sum_ = sum(X,axis=1)
         return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
     rate_X = get_rate_X(X)
+
 
     from utils import get_machine_config
     def get_cpu_X(X):
@@ -133,12 +133,13 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             # else:
             #     m = sorted(history[:i+1])[len(history[:i+1])/2]
 
-            # m = mean(history[:i+1])
-            # fea.extend([m for _ in range(len(history)-1-i)])
-            fea.extend([0 for _ in range(len(history)-1-i)])
+            m = mean(history[:i+1])
+            fea.extend([m for _ in range(len(history)-1-i)])
+            # fea.extend([0 for _ in range(len(history)-1-i)])
             fea.extend(history[:i+1])
             feature_grid.append(fea)
 
+        feature_grid = fancy(feature_grid,-1,(-predict_days,))
 
         # max_zero_percent = 1
         # keep = []
@@ -150,21 +151,18 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         #         keep.append(False)
         # feature_grid = fancy(feature_grid,-1,keep)
 
-
         feature_grid_log1p = apply(feature_grid,lambda x:math.log1p(x))
         feature_grid_sqrt = sqrt(feature_grid)
         feature_grid_square = square(feature_grid)
 
-
-        add_list= [feature_grid]
-
+        add_list= [feature_grid] #	77.804
 
         add_list.extend([feature_grid_sqrt])
-        add_list.extend([feature_grid_log1p])
-
+        add_list.extend([feature_grid_log1p]) # 77.998
         add_list.extend([feature_grid_square])
         add_list.extend([coef_X[mapping_index[f]]])
         add_list.extend([fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
+
         feature_grid = hstack(add_list)
 
         # ---------------------------------------------
@@ -176,21 +174,18 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         
         # ---------------------------------------------
-        # normalizing,scaling..
         # feature_grid = normalize(feature_grid,norm='l1')
-        # feature_grid = normalize(feature_grid,norm='l2')
+        feature_grid = normalize(feature_grid,norm='l2')
         # feature_grid = minmax_scaling(feature_grid) 
-        feature_grid = maxabs_scaling(feature_grid)
+        # feature_grid = maxabs_scaling(feature_grid)
         # feature_grid = standard_scaling(feature_grid)
 
-        
+
         X_trainS.append(feature_grid[:-1])
         X_test_S.append(feature_grid[-1:])
         Y_trainS.append(fancy(Y,-1,mapping_index[f]))
 
     return X_trainS,Y_trainS,X_test_S
-
-
 
 
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -203,6 +198,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_trainS,Y_trainS,X_test_S = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
     
     # train test split
+
+    
     result = []
     clfs = []
 
@@ -211,15 +208,17 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         y = Y_trainS[mapping_index[f]]
         X_test = X_test_S[mapping_index[f]]
 
-        # clf = Ridge(alpha=0.4,fit_intercept=True)
-        # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4,8],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        # from sklearn.linear_model import Lasso
+        # clf = Ridge(alpha=0.3,fit_intercept=True,bias_penalty=False)
+        # clf = grid_search_cv(Ridge,{'alpha':[1],'fit_intercept':[True,False],'bias_penalty':[True,False]},
+        # X,y,verbose=True,is_shuffle=False,scoring='score')
 
-        clf = KNN_Regressor(k=4,dynamic=False)
-        # clf = grid_search_cv(KNN_Regressor,{'k':[0.1,0.01,1,2,3,4]},X,y,verbose=True,is_shuffle=False,scoring='score')
+        # from sklearn.linear_model import Lasso
+        clf = KNN_Regressor(k=3,verbose=False)
+        # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
         clf.fit(X,y)
         clfs.append(clf)
         result.append(clf.predict(X_test))
+
 
     result = matrix_transpose(result)[0]
     result = [0 if r<0 else r for r in result]

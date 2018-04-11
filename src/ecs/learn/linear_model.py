@@ -52,11 +52,12 @@ class LinearRegression:
 
 
 class Ridge:
-    def __init__(self,alpha=1,fit_intercept=True):
+    def __init__(self,alpha=1,fit_intercept=True,bias_penalty=False):
         self.alpha = alpha
         self.fit_intercept = fit_intercept
         self.W = None
         self.dim_Y = None
+        self.bias_penalty = bias_penalty
 
     def fit(self,X,y):
         X,y = self._check(X,y)
@@ -67,7 +68,9 @@ class Ridge:
             X = hstack([bias,X])
         
         eye = identity_matrix(shape(X)[1])
-        eye[0][0] = 0
+        if self.bias_penalty==False:
+            eye[0][0] = 0
+       
         X_T = matrix_transpose(X)
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(
             plus(matrix_matmul(X_T,X),multiply(eye,self.alpha))

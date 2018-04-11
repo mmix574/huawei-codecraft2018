@@ -10,8 +10,7 @@ from datetime import datetime
 
 # def resample(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency='7d',weekday_align=None,N=1,get_flatten=False):
 
-
-def load_data(flavors_unique,frequency='7d',weekday_align=None,N=1,get_flatten=True,argumentation=False,which=None):
+def load_data(flavors_unique,which=[0,1,2]):
     if which != None:
         if type(which) == int:
             which = [which]
