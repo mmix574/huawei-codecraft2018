@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from backpack import backpack_random_k_times
 from learn.knn import KNN_Regressor
 from learn.lasso import Lasso
-from learn.linear_model import LinearRegression, Ridge
+from learn.ridge import Ridge
+from learn.linear_model import LinearRegression
 from linalg.common import (apply, dim, dot, fancy, flatten, mean, minus,
                            multiply, plus, reshape, shape, sqrt, square, sum,
                            zeros)
@@ -58,9 +59,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     strike = 1
     X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
-
-    # from copy import deepcopy
-    # Y = deepcopy(X[1:])
 
     def outlier_handling(X):
         std_ = stdev(X)
@@ -175,11 +173,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 
         # ---------------------------------------------
-        # feature_grid = normalize(feature_grid,norm='l1')
+        feature_grid = normalize(feature_grid,norm='l1')
         # feature_grid = normalize(feature_grid,norm='l2')
         # feature_grid = minmax_scaling(feature_grid) 
         # feature_grid = maxabs_scaling(feature_grid)
-        feature_grid = standard_scaling(feature_grid)
+        # feature_grid = standard_scaling(feature_grid)
 
 
         X_trainS.append(feature_grid[:-1])
@@ -207,6 +205,21 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
     
+
+    nx = vstack(X_trainS)
+    ny = vstack(Y_trainS)
+
+
+    from learn.knn import Dynamic_KNN_Regressor
+    # nclf = KNN_Regressor(k=4)
+
+    nclf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=True)
+    
+    # nclf = Dynamic_KNN_Regressor(k=15)
+    # nclf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[True]},nx,ny,verbose=True,is_shuffle=False,scoring='loss')
+    nclf.fit(nx,ny)
+
+    
     # clf clustering 
 
     # 1. trainning process
@@ -227,10 +240,10 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
         # clf = Dynamic_KNN_Regressor(k=3,verbose=False)
         clf.fit(X,y)
-        print(clf.W)
-
-        
         clfs.append(clf)
+
+
+    clfs = [nclf for _ in range(len(flavors_unique))]
 
     val_y = []
     val_y_ = []
@@ -243,6 +256,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         val_y.append(y)
 
     if verbose:
+        print('\n')
         print('###############################################')
         print('validation score-->',official_score(val_y,val_y_))
 
@@ -268,7 +282,6 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
-
 
 
 # build output lines

@@ -200,7 +200,7 @@ def _get_em_weights_of_cpu_and_mem(em,flavors):
     return cpu,mem
 
 def backpack_summary(backpack_result):
-    print('\n'+'-'*20 +'backpack summary below' +'-'*20)
+    # print('\n'+'-'*20 +'backpack summary below' +'-'*20)
     scores_cpu = []
     scores_mem = []
     for each in backpack_result:
@@ -230,8 +230,8 @@ def backpack_summary(backpack_result):
         scores_mem.append(score_mem)
 
 
-    print('backpack_cpu_score-->',sum(scores_cpu)/float(len(scores_cpu)))
-    print('backpack_mem_score-->',sum(scores_mem)/float(len(scores_mem)))
+    # print('backpack_cpu_score-->',sum(scores_cpu)/float(len(scores_cpu)))
+    # print('backpack_mem_score-->',sum(scores_mem)/float(len(scores_mem)))
 
     return None
 

@@ -120,27 +120,17 @@ def matrix_copy(A):
     return R
 
 
-def vstack(list_of_matrix):
-    assert(type(list_of_matrix)==list and len(list_of_matrix)>0)
-    width = shape(list_of_matrix[0])[1]
-    stacking_length = []
-    for i in range(len(list_of_matrix)):
-        assert(dim(list_of_matrix[i])==2)
-        assert(shape(list_of_matrix[i])[1]==width)
-        stacking_length.append(shape(list_of_matrix[i])[0])
 
-    R = zeros(sum(stacking_length),width)
-    for i in range(len(list_of_matrix)):
-        m,n = shape(list_of_matrix[i])
-        start = sum(stacking_length[:i])
-        # element wise copy
-        for j in range(m):
-            for k in range(n):
-                R[j+start][k] = list_of_matrix[i][j][k]
+def vstack(list_of_matrix):
+    R = []
+    for m in list_of_matrix:
+        R.extend(m)
     return R
 
 
 def hstack(list_of_matrix):
+    # from copy import deepcopy
+    # list_of_matrix = deepcopy(list_of_matrix)
     assert(type(list_of_matrix)==list and len(list_of_matrix)>0)
     high = shape(list_of_matrix[0])[0]
     stacking_length = []
