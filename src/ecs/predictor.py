@@ -89,7 +89,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             return coef_X,paths
         else:
             return coef_X
-    coef_X,paths = get_corrcorf_path(X,return_path=True,k=3)
+    coef_X,paths = get_corrcorf_path(X,return_path=True,k=5)
 
 
     def get_rate_X(X):
@@ -138,7 +138,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             fea.extend(history[:i+1])
             feature_grid.append(fea)
 
-        feature_grid = fancy(feature_grid,None,(-predict_days,))
+        feature_grid = fancy(feature_grid,None,(-1,))
 
         # max_zero_percent = 1
         # keep = []
@@ -160,7 +160,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         add_list.extend([feature_grid_log1p]) # 77.998
         add_list.extend([feature_grid_square])
         add_list.extend([coef_X[mapping_index[f]]])
-        add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
+        # add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
 
         feature_grid = hstack(add_list)
 
@@ -172,13 +172,14 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         # keep = [False if s<m else True for s in std]
         # feature_grid = fancy(feature_grid,-1,keep)
 
-        
+
+
         # ---------------------------------------------
-        feature_grid = normalize(feature_grid,norm='l1')
+        # feature_grid = normalize(feature_grid,norm='l1')
         # feature_grid = normalize(feature_grid,norm='l2')
         # feature_grid = minmax_scaling(feature_grid) 
         # feature_grid = maxabs_scaling(feature_grid)
-        # feature_grid = standard_scaling(feature_grid)
+        feature_grid = standard_scaling(feature_grid)
 
 
         X_trainS.append(feature_grid[:-1])
@@ -206,6 +207,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
     
+    # clf clustering 
+
     # 1. trainning process
     clfs = []
     for f in flavors_unique:
@@ -213,17 +216,20 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         y = Y_trainS[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
         # clf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=False)
-        # clf = Ridge(alpha=0.1,fit_intercept=True,bias_no_penalty=True)
+        clf = Ridge(alpha=0.001,fit_intercept=True,bias_no_penalty=True)
         # clf = grid_search_cv(Ridge,{'alpha':[0.01,0.0001,0.1,1],'fit_intercept':[True,False],'bias_no_penalty':[True,False]},X,y,verbose=True,is_shuffle=False,scoring='score')
 
         from learn.knn import Dynamic_KNN_Regressor
         from ensemble import bagging_estimator
 
-        clf = bagging_estimator(Ridge,{'alpha':3,"fit_intercept":True,"bias_no_penalty":False},max_clf=10)
+        # clf = bagging_estimator(Ridge,{'alpha':3,"fit_intercept":True,"bias_no_penalty":False},max_clf=10)
         # clf = KNN_Regressor(k=3,verbose=False)
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
         # clf = Dynamic_KNN_Regressor(k=3,verbose=False)
         clf.fit(X,y)
+        print(clf.W)
+
+        
         clfs.append(clf)
 
     val_y = []
@@ -239,6 +245,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     if verbose:
         print('###############################################')
         print('validation score-->',official_score(val_y,val_y_))
+
 
     test_prediction = []
     # 3.retraining
@@ -282,7 +289,7 @@ def predict_vm(ecs_lines,input_lines):
     result.append('') # output '\n'
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
-    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=100)
+    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=1000)
     
     # from backpack import maximize_score_backpack
     # backpack_list,entity_machine_sum = maximize_score_backpack(machine_config,flavors,flavors_unique,predict,optimized,k=1000)

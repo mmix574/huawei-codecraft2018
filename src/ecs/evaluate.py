@@ -241,6 +241,7 @@ if __name__ == '__main__':
         print(sys.argv)
     if sys.argv[1]=='train':
         backtest_folder = 'local_data_2015_01_2015_05/slicing_50days_7days_strike7'
+
     elif sys.argv[1]=='test':
         backtest_folder = 'local_data_2015_12_2016_01/slicing_50days_7days_strike3'
     elif sys.argv[1]=='val':
@@ -259,6 +260,10 @@ if __name__ == '__main__':
     python27_path = "python"
     dirs = [int(x) for x in os.listdir(backtest_folder)]
     dirs = sorted(dirs)
+    if len(sys.argv)>2:
+        number = int(sys.argv[2])
+        dirs = [d for d in dirs if d==number]
+
     import random
     temp_folder = 'temp{}'.format(random.random())
 
