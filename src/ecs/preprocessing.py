@@ -63,7 +63,7 @@ def minmax_scaling(X,axis=1):
     assert(axis==1)
     R = []
     for j in range(shape(X)[1]):
-        col = fancy(X,-1,j)     
+        col = fancy(X,None,j)     
         max_ = max(col)
         min_ = min(col)
         mean_ = mean(col)
@@ -76,7 +76,7 @@ def minmax_scaling(X,axis=1):
 def standard_scaling(X,axis=1):
     R = []
     for j in range(shape(X)[1]):
-        col = fancy(X,-1,j)     
+        col = fancy(X,None,j)     
         mean_ = mean(col)
         std = sqrt(mean(square(minus(col,mean_))))
         if std==0:
@@ -89,7 +89,7 @@ def maxabs_scaling(X,axis=1):
     assert(axis==1)
     R = []
     for j in range(shape(X)[1]):
-        col = fancy(X,-1,j)     
+        col = fancy(X,None,j)     
         max_ = max(abs(col))
         mean_ = mean(col)
         if max_ == 0:

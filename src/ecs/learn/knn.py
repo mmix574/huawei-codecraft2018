@@ -32,14 +32,53 @@ class KNN_Regressor:
             result.append(mean(ys,axis=0))
         return result  
 
-# todo
+from linalg.matrix import matrix_matmul,matrix_transpose
+from linalg.common import shape
+
 class Dynamic_KNN_Regressor:
     def __init__(self,k=3,verbose=False):
+        self.X = None
+        self.y = None
+        self.k = k
         
-        pass
+        self.shape_X = None
+        self.shape_Y = None
+
+
     def fit(self,X,y):
-        
-        pass
+        self.X = X
+        if dim(y) == 1:
+            self.y = [[k] for k in y]
+        else:
+            self.y = y
+        self.shape_X = shape(X)
+        self.shape_Y = shape(y)
+
     def predict(self,X):
-        
-        pass
+        result = []
+        # dim_X = dim(X)
+
+        if dim(X) == 1:
+            X = [X]
+        for x in X:
+            loss = sum(square(minus(self.X,x)),axis=1)
+            
+            index = argsort(loss)[:self.k]
+
+            ys = []
+            for i in index:
+                ys.append(self.y[i])
+
+            k_loss_raw = sorted(loss)[:self.k]
+            k_loss = [1/l if l!=0 else 0 for l in k_loss_raw]
+            k_loss_sum = sum(k_loss)
+            weights = [l/float(k_loss_sum) if k_loss_sum!=0 else 1 for l in k_loss]
+            weight_m = diag(weights)
+            ys = matrix_matmul(weight_m,ys)
+            result.append(sum(ys,axis=0))
+
+
+        if len(self.shape_Y)==1:
+            result = matrix_transpose(result)[0]
+
+        return result  

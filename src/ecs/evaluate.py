@@ -112,7 +112,10 @@ def parse_ecs_lines(ecs_lines):
     return ecs_logs,training_start_time,training_end_time
 
 
+# fix bug
+# @ 2018-04-11
 def parse(inputFile,resultFilePath,testInputFile):
+    # step1.   
     input_lines = read_lines(inputFile)
     predict_array = read_lines(resultFilePath)
     test_array = read_lines(testInputFile)
@@ -128,8 +131,10 @@ def parse(inputFile,resultFilePath,testInputFile):
         # skip sonme flavors which is not given in the inputFile 
         if f in flavors_unique:
             actual[f] += 1
-    # print(actual)
 
+
+
+    # step2.
     # parse predict result
     predict_virtual_machine_count = int(predict_array[0])
     predict = {}
@@ -142,20 +147,19 @@ def parse(inputFile,resultFilePath,testInputFile):
         f = int(raw[0][raw[0].find('r')+1:])
         count = int(raw[1])
         predict[f] = count
-    # print(predict)
-    # parse backpack
+    # checked
 
     predict_entity_machine_count = int(predict_array[predict_array.index('\n')+1])
     backpack_list = []
     for i in range(predict_array.index('\n')+2,len(predict_array)):
-        match = match = re.findall(r'r(\d) (\d)',predict_array[i])
+        match = re.findall(r'r(\d+) (\d+)',predict_array[i])
         em = {}.fromkeys(flavors_unique)
         for f in flavors_unique:
             em[f] = 0
         for k,v in match:
             em[int(k)] = int(v)
+        
         backpack_list.append(em)
-    # print(backpack_list)
 
     return (predict,actual,flavors_unique),(machine_config,optimized,flavors_unique,flavors,backpack_list)
 
@@ -197,29 +201,40 @@ def _get_em_weights_of_cpu_and_mem(em,flavors):
 
 def backpack_summary(backpack_result):
     print('\n'+'-'*20 +'backpack summary below' +'-'*20)
-    scores = []
+    scores_cpu = []
+    scores_mem = []
     for each in backpack_result:
         machine_config,optimized,flavors_unique,flavors,backpack_list = each
         total_cpu = 0
         total_mem = 0
         predict_entity_machine_count = len(backpack_list)
+
         if predict_entity_machine_count==0:
-            scores.append(0)
+            scores_cpu.append(0)
+            scores_mem.append(0)
             continue
         for em in backpack_list:
             cpu,mem = _get_em_weights_of_cpu_and_mem(em,flavors)
+
+            print('cpu-->',cpu/float(machine_config['cpu']))
+            print('mem-->',mem/float(machine_config['mem']))
             total_cpu += cpu
             total_mem += mem
         assert(optimized=='CPU' or optimized=='MEM')
-        if optimized=='CPU':
-            score = total_cpu/float(machine_config['cpu']*predict_entity_machine_count)
-        elif optimized=='MEM':
-            score = total_mem/float(machine_config['mem']*predict_entity_machine_count)
-        scores.append(score)
-    print(scores)
-    print('backpackscore_max-->',max(scores))
-    print('backpackscore-->',sum(scores)/float(len(scores)))
-    return scores
+
+
+        score_cpu = total_cpu/float(machine_config['cpu']*predict_entity_machine_count)
+        score_mem = total_mem/float(machine_config['mem']*predict_entity_machine_count)
+
+        scores_cpu.append(score_cpu)
+        scores_mem.append(score_mem)
+
+
+    print('backpack_cpu_score-->',sum(scores_cpu)/float(len(scores_cpu)))
+    print('backpack_mem_score-->',sum(scores_mem)/float(len(scores_mem)))
+
+    return None
+
 
 if __name__ == '__main__':
     if len(sys.argv)>=2:
@@ -234,16 +249,9 @@ if __name__ == '__main__':
         # get parsed  
         p,b = parse('input_15flavors_cpu_7days.txt','output.txt','TestData_2015.2.20_2015.2.27.txt')
 
-        s1 = predict_summary([p])
-        s2 = backpack_summary([b])
-        # done
-        print ('\n'+'-'*20 +'final combime scores below' +'-'*20)
-        combine_scores = [ s1[i]*s2[i] for i in range(len(s1))]
-        print (combine_scores,'\n')
-        print('combine_scores_max-->',max(combine_scores))
-        print('combine_scores-->',mean(combine_scores))
+        predict_summary([p])
+        backpack_summary([b])
         exit()
-
     else:
         print('command error')
         exit()       
@@ -289,8 +297,6 @@ if __name__ == '__main__':
  '\n',
 ]
     # result of batch testing 
-    predict_result = []
-    backpack_result = []
     for i in dirs:
 
         # write input files
@@ -325,24 +331,17 @@ if __name__ == '__main__':
         # assert(os.path.exists(output_file_path) and os.path.exists(testing_file_path))
 
         # get parsed  
-        p,b = parse(input_file_path,output_file_path,testing_file_path)
+        predict_,backpack_ = parse(input_file_path,output_file_path,testing_file_path)
 
-        predict_result.append(p)
-        backpack_result.append(b)
+        predict_summary([predict_])
+        backpack_summary([backpack_])
 
     # delete the temporary file dir
     if os.path.exists(temp_folder):
         import shutil
         shutil.rmtree(temp_folder)
 
-    s1 = predict_summary(predict_result)
-    s2 = backpack_summary(backpack_result)
-    # done
 
-    print('\n'+'-'*20 +'final combime scores below' +'-'*20)
-    combine_scores = [ s1[i]*s2[i] for i in range(len(s1)) if s1[i] and s2[i]]
-    print(combine_scores,'\n')
-    print('combine_scores_max-->',max(combine_scores))
-    print('combine_scores-->',mean(combine_scores))
+
 
 

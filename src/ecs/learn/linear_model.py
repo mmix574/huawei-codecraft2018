@@ -41,15 +41,6 @@ class LinearRegression:
             result = [x[0] for x in result]
         return result
 
-    # # !! prepare to remove 
-    # def score(self,X,y,scoring='mse'):
-    #     assert(scoring=='mse')
-    #     p = self.predict(X)
-    #     p_v = reshape(p,(-1,))
-    #     y_v = reshape(y,(-1,))
-    #     loss = sqrt(mean(square(minus(p_v,y_v))))
-    #     print('loss:',loss)
-
 
 class Ridge:
     def __init__(self,alpha=1,fit_intercept=True,bias_no_penalty=False):
@@ -94,12 +85,3 @@ class Ridge:
         if self.dim_Y==1:
             result = [x[0] for x in result]
         return result
-
-    # # !! prepare to remove 
-    # def score(self,X,y,scoring='mse'):
-    #     assert(scoring=='mse')
-    #     p = self.predict(X)
-    #     p_v = reshape(p,(-1,))
-    #     y_v = reshape(y,(-1,))
-    #     loss = sqrt(mean(square(minus(p_v,y_v))))
-    #     print('loss:',loss)

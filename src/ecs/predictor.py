@@ -164,6 +164,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         feature_grid = hstack(add_list)
 
+        # exit()
         # ---------------------------------------------
         # ..filter the sparse feature by checking stdev..
         # std = stdev(feature_grid)
@@ -189,7 +190,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     # debug
-    verbose = True
+    verbose = False
 
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -215,9 +216,12 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         # clf = Ridge(alpha=0.1,fit_intercept=True,bias_no_penalty=True)
         # clf = grid_search_cv(Ridge,{'alpha':[0.01,0.0001,0.1,1],'fit_intercept':[True,False],'bias_no_penalty':[True,False]},X,y,verbose=True,is_shuffle=False,scoring='score')
 
-        # from sklearn.linear_model import Lasso
-        clf = KNN_Regressor(k=3,verbose=True)
+
+        from learn.knn import Dynamic_KNN_Regressor
+        # clf = KNN_Regressor(k=3,verbose=True)
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
+        clf = Dynamic_KNN_Regressor(k=3,verbose=False)
+
         clf.fit(X,y)
         clfs.append(clf)
 
