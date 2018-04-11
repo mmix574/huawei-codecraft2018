@@ -65,10 +65,12 @@ class Ridge:
             m,n = shape(X)
             bias = ones(m,1)
             X = hstack([bias,X])
-
+        
+        eye = identity_matrix(shape(X)[1])
+        eye[0][0] = 0
         X_T = matrix_transpose(X)
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(
-            plus(matrix_matmul(X_T,X),multiply(identity_matrix(shape(X)[1]),self.alpha))
+            plus(matrix_matmul(X_T,X),multiply(eye,self.alpha))
         ),X_T),y)
     
     def _check(self,X,y):

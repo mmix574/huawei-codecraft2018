@@ -1,4 +1,4 @@
-from linalg.common import dim,square,minus,mean,sum
+from linalg.common import dim,square,minus,mean,sum,abs
 from linalg.vector import argsort
 
 from linalg.matrix import diag
@@ -17,11 +17,12 @@ class KNN_Regressor:
     def predict(self,X):
         result = []
         # dim_X = dim(X)
-        
+
         if dim(X) == 1:
             X = [X]
         for x in X:
             loss = sum(square(minus(self.X,x)),axis=1)
+            # loss = sum(abs(minus(self.X,x)),axis=1)
             index = argsort(loss)[:self.k]
             ys = []
             for i in index:

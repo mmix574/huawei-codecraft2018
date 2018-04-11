@@ -105,6 +105,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         return X
 
+    def get_smoothing_X(X):
+        
+        return X
+
+
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
@@ -134,31 +139,33 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             fea.extend(history[:i+1])
             feature_grid.append(fea)
 
-        # feature_grid = fancy(feature_grid,-1,(int(shape(feature_grid)[0]*(4/5.0)),shape(feature_grid)[0]))
 
-        max_zero_percent = 0.5
-        keep = []
-        feature_grid_T = matrix_transpose(feature_grid)
-        for col in feature_grid_T:
-            if ((1 - count_nonezero(col))/float(len(col)))<max_zero_percent :
-                keep.append(True)
-            else:
-                keep.append(False)
-        feature_grid = fancy(feature_grid,-1,keep)
+        # max_zero_percent = 1
+        # keep = []
+        # feature_grid_T = matrix_transpose(feature_grid)
+        # for col in feature_grid_T:
+        #     if (1-(count_nonezero(col))/float(len(col)))<max_zero_percent :
+        #         keep.append(True)
+        #     else:
+        #         keep.append(False)
+        # feature_grid = fancy(feature_grid,-1,keep)
 
 
         feature_grid_log1p = apply(feature_grid,lambda x:math.log1p(x))
         feature_grid_sqrt = sqrt(feature_grid)
         feature_grid_square = square(feature_grid)
+
+
         add_list= [feature_grid]
 
-        add_list.extend([feature_grid_sqrt,feature_grid_log1p,feature_grid_square])
-        # add_list.extend([coef_X[mapping_index[f]] , fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
-        
-        add_list.extend([coef_X[mapping_index[f]] , fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
 
+        add_list.extend([feature_grid_sqrt])
+        add_list.extend([feature_grid_log1p])
+
+        add_list.extend([feature_grid_square])
+        add_list.extend([coef_X[mapping_index[f]]])
+        add_list.extend([fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
         feature_grid = hstack(add_list)
-
 
         # ---------------------------------------------
         # ..filter the sparse feature by checking stdev..
@@ -167,11 +174,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         # keep = [False if s<m else True for s in std]
         # feature_grid = fancy(feature_grid,-1,keep)
 
-        # ---------------------------------------------
-        # ... other preprocessing ..
-        # print(shape(feature_grid[:-shape(X_test_raw)[0]]))
-        # print(shape(feature_grid[-shape(X_test_raw)[0]:]))
-        # print(fancy(y,dim_0,mapping_index[f]))
         
         # ---------------------------------------------
         # normalizing,scaling..
@@ -180,14 +182,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         # feature_grid = minmax_scaling(feature_grid) 
         feature_grid = maxabs_scaling(feature_grid)
         # feature_grid = standard_scaling(feature_grid)
-
-        
-        # linear relation filtering
-        # linear_relation = dot(matrix_transpose(feature_grid[:-1]),y)
-        # # m = sorted(linear_relation)[len(linear_relation)/5]
-        # # keep = [True if x >m else False for x in linear_relation]
-        # keep = [True if x >0 else False for x in linear_relation]
-        # feature_grid = fancy(feature_grid,-1,keep)
 
         
         X_trainS.append(feature_grid[:-1])
@@ -216,10 +210,13 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
         X_test = X_test_S[mapping_index[f]]
+
+        # clf = Ridge(alpha=0.4,fit_intercept=True)
         # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4,8],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        # clf = Ridge(alpha=1,fit_intercept=False)
+        # from sklearn.linear_model import Lasso
+
         clf = KNN_Regressor(k=4,dynamic=False)
-        # clf = grid_search_cv(KNN_Regressor,{'k':[1,2,3,4]},X,y,verbose=False,is_shuffle=False,scoring='score')
+        # clf = grid_search_cv(KNN_Regressor,{'k':[0.1,0.01,1,2,3,4]},X,y,verbose=True,is_shuffle=False,scoring='score')
         clf.fit(X,y)
         clfs.append(clf)
         result.append(clf.predict(X_test))

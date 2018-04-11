@@ -98,3 +98,15 @@ def maxabs_scaling(X,axis=1):
             R.append([(x-mean_)/(max_) for x in col])
                 
     return matrix_transpose(R)
+
+
+def weight_decay_smoothing(X,axis=0,weight=0.5):
+
+
+    pass
+
+
+def exponential_smoothing(X,axis=0,alpha=0.1):
+
+
+    pass

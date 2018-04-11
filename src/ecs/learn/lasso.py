@@ -6,7 +6,7 @@ from linalg.matrix import hstack, matrix_matmul, matrix_transpose
 
 
 class Lasso:
-    def __init__(self, alpha=1.0, max_iter=1000, fit_intercept=True):
+    def __init__(self, alpha=1.0, max_iter=20, fit_intercept=True):
         self.alpha = alpha
         self.max_iter = max_iter
         self.fit_intercept = fit_intercept
@@ -73,7 +73,6 @@ class Lasso:
                 beta[0] = sum(minus(reshape(y,-1) , dot(raw_X, beta[1:])))/(shape(X)[0])
 
             for _ in range(self.max_iter):
-                print(_)
                 start = 1 if self.fit_intercept else 0
                 for j in range(start, len(beta)):
                     tmp_beta = [x for x in beta]
