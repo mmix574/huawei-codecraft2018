@@ -32,3 +32,14 @@ class KNN_Regressor:
             result.append(mean(ys,axis=0))
         return result  
 
+# todo
+class Dynamic_KNN_Regressor:
+    def __init__(self,k=3,verbose=False):
+        
+        pass
+    def fit(self,X,y):
+        
+        pass
+    def predict(self,X):
+        
+        pass

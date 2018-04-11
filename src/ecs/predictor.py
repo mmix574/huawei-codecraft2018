@@ -206,25 +206,20 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
     
     # 1. trainning process
-    result = []
     clfs = []
     for f in flavors_unique:
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
-
         # clf = Ridge(alpha=1,fit_intercept=True,bias_penalty=False)
-        clf = Ridge(alpha=0.1,fit_intercept=True,bias_no_penalty=True)
-        # clf = grid_search_cv(Ridge,{'alpha':[1],'fit_intercept':[True,False],'bias_penalty':[True,False]},
-        # X,y,verbose=True,is_shuffle=False,scoring='score')
+        # clf = Ridge(alpha=0.1,fit_intercept=True,bias_no_penalty=True)
+        # clf = grid_search_cv(Ridge,{'alpha':[0.01,0.0001,0.1,1],'fit_intercept':[True,False],'bias_no_penalty':[True,False]},X,y,verbose=True,is_shuffle=False,scoring='score')
 
         # from sklearn.linear_model import Lasso
-        # clf = KNN_Regressor(k=3,verbose=False)
+        clf = KNN_Regressor(k=3,verbose=True)
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
         clf.fit(X,y)
         clfs.append(clf)
-        result.append(clf.predict(X_test))
-
 
     val_y = []
     val_y_ = []
