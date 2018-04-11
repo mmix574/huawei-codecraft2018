@@ -216,8 +216,8 @@ def backpack_summary(backpack_result):
         for em in backpack_list:
             cpu,mem = _get_em_weights_of_cpu_and_mem(em,flavors)
 
-            print('cpu-->',cpu/float(machine_config['cpu']))
-            print('mem-->',mem/float(machine_config['mem']))
+            # print('cpu-->',cpu/float(machine_config['cpu']))
+            # print('mem-->',mem/float(machine_config['mem']))
             total_cpu += cpu
             total_mem += mem
         assert(optimized=='CPU' or optimized=='MEM')

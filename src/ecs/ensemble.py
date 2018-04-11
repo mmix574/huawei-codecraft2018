@@ -3,7 +3,7 @@ from linalg.common import shape
 from linalg.common import multiply,plus
 
 
-class bagging_estimator(BasePredictor):
+class bagging_estimator:
     def __init__(self,estimator,parameter,max_clf = 100):
         self.estimator = estimator
         self.parameter = parameter
@@ -37,7 +37,8 @@ class bagging_estimator(BasePredictor):
         return prediction
 
 
-# closed 
+
+from metrics import official_score,l2_loss
 # data selection based on model
 def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_size=None,max_iter=100,verbose=False,scoring='score'):
     def bagging(X_train,Y_train,bagging_size=None):
@@ -57,7 +58,9 @@ def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_si
         for i in range(max_iter):
             X,y = bagging(X_train,Y_train,bagging_size=bagging_size)
             regressor_instance.fit(X,y)
-            score = regressor_instance.score(X_val,Y_val)
+            p = regressor_instance.predict(X_val)
+            score = official_score(p,Y_val)
+            # score = regressor_instance.score(X_val,Y_val)
             if not max_score or score>max_score:
                 if verbose:
                     print(score)
@@ -72,7 +75,10 @@ def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_si
         for i in range(max_iter):
             X,y = bagging(X_train,Y_train,bagging_size=bagging_size)
             regressor_instance.fit(X,y)
-            loss = regressor_instance.loss(X_val,Y_val)
+            # loss = regressor_instance.loss(X_val,Y_val)
+            p = regressor_instance.predict(X_val)
+            loss = l2_loss(p,Y_val)
+
             if not min_loss or loss<min_loss:
                 if verbose:
                     print(loss)
