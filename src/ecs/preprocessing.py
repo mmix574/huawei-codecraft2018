@@ -103,10 +103,15 @@ def maxabs_scaling(X,axis=1):
 def weight_decay_smoothing(X,axis=0,weight=0.5):
 
 
-    pass
-
-
-def exponential_smoothing(X,axis=0,alpha=0.1):
-
 
     pass
+
+
+def exponential_smoothing(A,axis=0,alpha=0.1):
+    R = []
+    D = None
+    L = None
+    for i in range(shape(A)[0]):
+    
+        pass
+    
