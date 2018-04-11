@@ -103,10 +103,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     from utils import get_machine_config
     def get_cpu_X(X):
         cpu_config,mem_config = get_machine_config(flavors_unique)
-                
+
         return X
 
-    
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
@@ -161,13 +160,12 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         feature_grid = hstack(add_list)
 
-        
 
         # ---------------------------------------------
         # ..filter the sparse feature by checking stdev..
         # std = stdev(feature_grid)
-        # m = medium(std)
-        # keep = [False if s==0 else True for s in std]
+        # m = sorted(std)[int(len(std)*(1/float(2.0)))]
+        # keep = [False if s<m else True for s in std]
         # feature_grid = fancy(feature_grid,-1,keep)
 
         # ---------------------------------------------

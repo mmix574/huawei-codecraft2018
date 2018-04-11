@@ -11,7 +11,9 @@ class KNN_Regression:
         self.y = y
     def predict(self,X):
         result = []
-        dim_X = dim(X)
+        # dim_X = dim(X)
+
+
         if dim(X) == 1:
             X = [X]
         for x in X:
@@ -21,5 +23,5 @@ class KNN_Regression:
             for i in index:
                 ys.append(self.y[i])
             result.append(mean(ys,axis=0))
-
+            
         return result  
