@@ -100,18 +100,18 @@ def maxabs_scaling(X,axis=1):
     return matrix_transpose(R)
 
 
-def weight_decay_smoothing(X,axis=0,weight=0.5):
+# def weight_decay_smoothing(X,axis=0,weight=0.5):
+#     assert(axis==0)
 
 
-
-    pass
-
-
+from linalg.common import plus
 def exponential_smoothing(A,axis=0,alpha=0.1):
+    assert(axis==0)
     R = []
-    D = None
-    L = None
+    C = zeros(shape(A)[1])
     for i in range(shape(A)[0]):
-    
-        pass
-    
+        P = multiply(A[i],(1-alpha))
+        Q = multiply(C,alpha)
+        C = plus(P,Q)
+        R.append(C)
+    return R

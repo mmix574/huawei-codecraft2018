@@ -167,11 +167,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         feature_grid_square = square(feature_grid)
         add_list= [feature_grid] #	77.804
 
-        # add_list.extend([feature_grid_sqrt])
-        # add_list.extend([feature_grid_log1p]) # 77.998
-        # add_list.extend([feature_grid_square])
-        # add_list.extend([coef_X[mapping_index[f]]])
-        # add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
+        add_list.extend([feature_grid_sqrt])
+        add_list.extend([feature_grid_log1p]) # 77.998
+        add_list.extend([feature_grid_square])
+        add_list.extend([coef_X[mapping_index[f]]])
+        add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
         feature_grid = hstack(add_list)
 
         # exit()
