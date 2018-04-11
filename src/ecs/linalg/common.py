@@ -379,9 +379,10 @@ def fancy(*argv):
     A = argv[0]
     assert(type(A)==list)
     assert(dim(A)==len(argv)-1)
+
     if dim(A)==1:
-        if type(argv[1])==int:
-            if argv[1]==-1:
+        if type(argv[1])==int or argv[1]==None:
+            if argv[1]==None:
                 return A
             else:
                 return A[argv[1]]
@@ -403,9 +404,9 @@ def fancy(*argv):
         else:
             raise Exception            
     else:
-        if type(argv[1])==int:
+        if type(argv[1])==int or argv[1]==None:
             
-            if argv[1]==-1:
+            if argv[1]==None:
                 return [fancy(A[i],*argv[2:]) for i in range(shape(A)[0])]
             else:
                 return fancy(A[argv[1]],*argv[2:])
@@ -435,8 +436,7 @@ def fancy(*argv):
 # add @2018-04-10
 def apply(A,f):
     if type(A) == list:
-        for a in A:
-            A = [apply(a,f) for a in A]
+        A = [apply(a,f) for a in A]
         return A
     else:
         return f(A)

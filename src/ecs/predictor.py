@@ -50,6 +50,7 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     return sample
 
 
+
 # add @ 2018-04-09 
 def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
@@ -63,17 +64,15 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     def outlier_handling(X):
         std_ = stdev(X)
-        mean_ = mean(X,axis=0)
+        mean_ = mean(X,axis=1)
         for i in range(shape(X)[0]):
             for j in range(shape(X)[1]):
                if X[i][j]-mean_[j] >3*std_[j]:
                    X[i][j] = mean_[j]
         return X
+
     X = outlier_handling(X)
     Y = X[1:]
-    # exit()
-
-
 
     def get_corrcorf_path(X,return_ith=False,k=3,return_path=True):
         coef_X = []
@@ -83,7 +82,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             col = corrcoef_X[i]
             col_index_sorted = argsort(col)[::-1]
             index = col_index_sorted[1:k]
-            coef_X.append(fancy(X,-1,index))
+            coef_X.append(fancy(X,None,index))
             paths.append(index)
 
         if return_path:
@@ -113,8 +112,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
-        history = fancy(X,-1,mapping_index[f])
-        y = fancy(Y,-1,mapping_index[f])
+        history = fancy(X,None,mapping_index[f])
+        y = fancy(Y,None,mapping_index[f])
         feature_grid = []
         # feature_grid:
         # (n_samples,n_features) 
@@ -139,7 +138,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             fea.extend(history[:i+1])
             feature_grid.append(fea)
 
-        feature_grid = fancy(feature_grid,-1,(-predict_days,))
+        feature_grid = fancy(feature_grid,None,(-predict_days,))
 
         # max_zero_percent = 1
         # keep = []
@@ -161,7 +160,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         add_list.extend([feature_grid_log1p]) # 77.998
         add_list.extend([feature_grid_square])
         add_list.extend([coef_X[mapping_index[f]]])
-        add_list.extend([fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
+        add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
 
         feature_grid = hstack(add_list)
 
@@ -174,8 +173,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         
         # ---------------------------------------------
-        # feature_grid = normalize(feature_grid,norm='l1')
-        feature_grid = normalize(feature_grid,norm='l2')
+        feature_grid = normalize(feature_grid,norm='l1')
+        # feature_grid = normalize(feature_grid,norm='l2')
         # feature_grid = minmax_scaling(feature_grid) 
         # feature_grid = maxabs_scaling(feature_grid)
         # feature_grid = standard_scaling(feature_grid)
@@ -183,51 +182,85 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         X_trainS.append(feature_grid[:-1])
         X_test_S.append(feature_grid[-1:])
-        Y_trainS.append(fancy(Y,-1,mapping_index[f]))
+        Y_trainS.append(fancy(Y,None,mapping_index[f]))
 
     return X_trainS,Y_trainS,X_test_S
 
 
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+    # debug
+    verbose = True
+
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
     virtual_machine_sum = 0
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
-    X_trainS,Y_trainS,X_test_S = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
     
-    # train test split
+    X_trainS = fancy(X_trainS_raw,None,(0,-1),None)
+    Y_trainS = fancy(Y_trainS_raw,None,(0,-1))
 
+    X_valS = fancy(X_trainS_raw,None,(-1,),None)
+    Y_valS = fancy(Y_trainS_raw,None,(-1,))
     
+    # 1. trainning process
     result = []
     clfs = []
-
     for f in flavors_unique:
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
-        X_test = X_test_S[mapping_index[f]]
+        X_test = X_testS[mapping_index[f]]
 
-        # clf = Ridge(alpha=0.3,fit_intercept=True,bias_penalty=False)
+        # clf = Ridge(alpha=1,fit_intercept=True,bias_penalty=False)
+        clf = Ridge(alpha=0.1,fit_intercept=True,bias_no_penalty=True)
         # clf = grid_search_cv(Ridge,{'alpha':[1],'fit_intercept':[True,False],'bias_penalty':[True,False]},
         # X,y,verbose=True,is_shuffle=False,scoring='score')
 
         # from sklearn.linear_model import Lasso
-        clf = KNN_Regressor(k=3,verbose=False)
+        # clf = KNN_Regressor(k=3,verbose=False)
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
         clf.fit(X,y)
         clfs.append(clf)
         result.append(clf.predict(X_test))
 
 
-    result = matrix_transpose(result)[0]
+    val_y = []
+    val_y_ = []
+    # 2.validation process
+    for f in flavors_unique:
+        X = X_valS[mapping_index[f]]
+        y = Y_valS[mapping_index[f]]
+        clf = clfs[mapping_index[f]]
+        val_y_.append(clf.predict(X))
+        val_y.append(y)
+
+    if verbose:
+        print('validation score-->',official_score(val_y,val_y_))
+
+    test_prediction = []
+    # 3.retraining
+    for f in flavors_unique:
+        X = X_trainS_raw[mapping_index[f]]
+        y = Y_trainS_raw[mapping_index[f]]
+        X_test = X_testS[mapping_index[f]]
+        clf = clfs[mapping_index[f]]
+        clf.fit(X,y)
+        test_prediction.append(clf.predict(X_test))
+    result = matrix_transpose(test_prediction)[0]
+    
+    # result = matrix_transpose(result)[0]
+    if verbose:
+        print('predict-->',result)
+
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
-    # return predict_method(ecs_logs,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+
 
 
 # build output lines
