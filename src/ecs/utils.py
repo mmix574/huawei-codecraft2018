@@ -28,8 +28,7 @@ def parse_input_lines(input_lines):
                 continue                
             f,core,mem = line.split(' ')
             f,core,mem = int(f[f.find('r')+1:]),int(core),int(mem)
-            # core = int(core)
-            # mem = int(mem)
+
             flavors_config[f]=(core,mem)
             flavors_unique.append(f)
         elif seg == 3:
@@ -44,7 +43,7 @@ def parse_input_lines(input_lines):
     # important, do not delete
     flavors_unique = sorted(flavors_unique)
 
-    return machine_config,flavors_number,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time
+    return machine_config,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time
 
 def parse_ecs_lines(ecs_lines,flavors_unique):
     ecs_logs = []

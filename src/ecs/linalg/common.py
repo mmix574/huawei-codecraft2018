@@ -13,6 +13,7 @@ def dim(A):
         else:
             break
     return d
+
 # return the shape of a matrix or a tensor 
 
 def shape(A):
@@ -127,14 +128,17 @@ def minus(A,B):
         return [x-B for x in A]
 
     elif dim(A)==2 and type(B)==list:
-        assert(shape(A)==shape(B))
-        R = []
-        for i in range(shape(A)[0]):
-            r = []
-            for j in range(shape(A)[1]):
-                r.append(A[i][j]-B[i][j])
-            R.append(r)
-        return R
+        if dim(A) == dim(B):
+            assert(shape(A)==shape(B))
+            R = []
+            for i in range(shape(A)[0]):
+                r = []
+                for j in range(shape(A)[1]):
+                    r.append(A[i][j]-B[i][j])
+                R.append(r)
+            return R
+        else:
+            return [minus(a,B) for a in A]
     elif dim(A)==2 and (type(B)==float or type(B)==int):
         R = []
         for i in range(shape(A)[0]):

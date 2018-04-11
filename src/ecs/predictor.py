@@ -56,6 +56,7 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 # zero padding feature extraction
 # 74.103 online score 2018-04-09 
 # 78.184
+# 75.581 outlier remove
 # magical feature engineering 
 def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
@@ -65,15 +66,14 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
     Y = X[1:]
 
-    # 75.581
     def outlier_handling(X):
         std_ = stdev(X)
         mean_ = mean(X,axis=0)
         for i in range(shape(X)[0]):
             for j in range(shape(X)[1]):
                if X[i][j]-mean_[j] >3*std_[j]:
-                #    X[i][j] = mean_[j]
-                   X[i][j] = 0
+                   X[i][j] = mean_[j]
+                #    X[i][j] = 0
                 #    X[i][j] = sqrt(X[i][j])
         return X
     X = outlier_handling(X)
@@ -101,6 +101,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
     rate_X = get_rate_X(X)
 
+    def get_cpu_X(X):
+        
+        pass
 
     # diff_X = minus(X,shift(X,1,fill=0))
     # diff_X_2 = minus(X,shift(X,2,fill=0))
@@ -127,6 +130,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             #     m = 0
             # else:
             #     m = sorted(history[:i+1])[len(history[:i+1])/2]
+
             # m = mean(history[:i+1])
             # fea.extend([m for _ in range(len(history)-1-i)])
             fea.extend([0 for _ in range(len(history)-1-i)])
@@ -149,8 +153,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         feature_grid_log1p = apply(feature_grid,lambda x:math.log1p(x))
         feature_grid_sqrt = sqrt(feature_grid)
         feature_grid_square = square(feature_grid)
+        add_list= [feature_grid]
 
-        add_list= [feature_grid,feature_grid_sqrt,feature_grid_log1p,feature_grid_square]
+        add_list.extend([feature_grid_sqrt,feature_grid_log1p,feature_grid_square])
         add_list.extend([coef_X[mapping_index[f]] , fancy(rate_X,-1,(mapping_index[f],mapping_index[f]+1))])
 
         feature_grid = hstack(add_list)
@@ -174,19 +179,19 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         
         # ---------------------------------------------
         # normalizing,scaling..
-        feature_grid = normalize(feature_grid,norm='l1') #0.572884203014 0.593898128226  0.716294303441
+        # feature_grid = normalize(feature_grid,norm='l1') #0.572884203014 0.593898128226  0.716294303441
         # feature_grid = normalize(feature_grid,norm='l2') #0.564134720247 0.620964076788 0.664466379897
         # feature_grid = minmax_scaling(feature_grid) #0.498931703737 0.519933525422 (test good) 0.794159038136
-        # feature_grid = maxabs_scaling(feature_grid) #0.494858535164 0.589982815641 0.787027762262
+        feature_grid = maxabs_scaling(feature_grid) #0.494858535164 0.589982815641 0.787027762262
         # feature_grid = standard_scaling(feature_grid) #0.492486341694 0.441285064425 0.579265952486
 
         
         # linear relation filtering
-        linear_relation = dot(matrix_transpose(feature_grid[:-1]),y)
-        # m = sorted(linear_relation)[len(linear_relation)/5]
-        # keep = [True if x >m else False for x in linear_relation]
-        keep = [True if x >0 else False for x in linear_relation]
-        feature_grid = fancy(feature_grid,-1,keep)
+        # linear_relation = dot(matrix_transpose(feature_grid[:-1]),y)
+        # # m = sorted(linear_relation)[len(linear_relation)/5]
+        # # keep = [True if x >m else False for x in linear_relation]
+        # keep = [True if x >0 else False for x in linear_relation]
+        # feature_grid = fancy(feature_grid,-1,keep)
 
         
         X_trainS.append(feature_grid[:-1])
@@ -197,6 +202,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 
 
+from learn.knn import KNN_Regression      
+
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -205,19 +212,22 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
     X_trainS,Y_trainS,X_test_S = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    
+    # train test split
+    
     result = []
-
-    # add validations
-    # tomorrow 
-
     clfs = []
+
     for f in flavors_unique:
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
         X_test = X_test_S[mapping_index[f]]
         # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4,8],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        clf = Ridge(alpha=1,fit_intercept=False)
+        # clf = Ridge(alpha=1,fit_intercept=False)
+        clf = KNN_Regression(k=4)
+
         clf.fit(X,y)
+        clfs.append(clf)
         result.append(clf.predict(X_test))
 
     result = matrix_transpose(result)[0]
@@ -235,7 +245,7 @@ def predict_vm(ecs_lines,input_lines):
     if input_lines is None or ecs_lines is None:
         return []
 
-    machine_config,flavors_number,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
+    machine_config,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines,flavors_unique)
 
     predict,virtual_machine_sum = merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
