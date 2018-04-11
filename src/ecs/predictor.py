@@ -81,14 +81,14 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
     Y = X[1:]
 
-    def outlier_handling(sample,method='mean'):
+    def outlier_handling(X,method='mean',max_sigma=3):
         assert(method=='mean' or method=='zero')
-        X = matrix_copy(sample)
-        std_ = stdev(sample)
-        mean_ = mean(sample,axis=1)
+        X = matrix_copy(X)
+        std_ = stdev(X)
+        mean_ = mean(X,axis=1)
         for i in range(shape(X)[0]):
             for j in range(shape(X)[1]):
-               if X[i][j]-mean_[j] >3*std_[j]:
+               if X[i][j]-mean_[j] >max_sigma*std_[j]:
                     if method=='mean':
                         X[i][j] = mean_[j]
                     elif method=='zero':
@@ -117,7 +117,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     clustering_paths,coef_X = flavor_clustering(X)
 
-
+    # todo 
     def get_feature_grid(X,i,fill_na='mean',max_na_rate=1):
         assert(fill_na=='mean' or fill_na=='zero')
         
@@ -137,7 +137,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     # def get_cpu_X(X):
     #     cpu_config,mem_config = get_machine_config(flavors_unique)
-
     #     return X
 
 
