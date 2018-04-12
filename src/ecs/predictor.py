@@ -55,23 +55,23 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 
 
 
-# add @ 2018-04-09 
-# X:
-#   f1 f2 f3 f4 f5 f6 ...
-# t1[---------------------]
-# t2[---------------------]
-# t3[---------------------]
-# t4[---------------------]
-# ..[---------------------]
+    # add @ 2018-04-09 
+    # X:
+    #   f1 f2 f3 f4 f5 f6 ...
+    # t1[---------------------]
+    # t2[---------------------]
+    # t3[---------------------]
+    # t4[---------------------]
+    # ..[---------------------]
 
-# feature_grid: 
-# (n_samples,n_features) 
-# [-----------|----------1]
-# [-----------|-------1--2]
-# [-----------|----1--2--3]  --<--cut some where,or fill the Na with some value.
-# [-----------|-..........]
-# [1--2--3....|..........n]
-# sparse feature--  dense feature
+    # feature_grid: 
+    # (n_samples,n_features) 
+    # [-----------|----------1]
+    # [-----------|-------1--2]
+    # [-----------|----1--2--3]  --<--cut some where,or fill the Na with some value.
+    # [-----------|-..........]
+    # [1--2--3....|..........n]
+    # sparse feature--  dense feature
 
 # fix griding bug @2018-04-12
 def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
@@ -115,9 +115,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=0.3)
     # clustering_paths,coef_sample = flavor_clustering(sample,k=3)
-
     # clustering_paths,coef_sample = flavor_clustering(sample,k=5)
-    # clustering_paths contians 0 index 
+
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
         assert(fill_na=='mean' or fill_na=='zero')
         col = fancy(sample,None,i)
@@ -169,9 +168,10 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         sum_row = sum(sample,axis=1)
         R = []
 
-    # def get_cpu_rate_X(sample,i):
-    #         # rate_X = get_rate_X(X)
 
+    def get_cpu_rate_X(sample,i):
+        
+        pass
 
     # # def get_cpu_X(X):
     # #     cpu_config,mem_config = get_machine_config(flavors_unique)
@@ -180,14 +180,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     # def get_mem_rate_X(sample,i):
         
     #     pass
-
-
-    # def get_accumulate_X(X,i):
-    #     R = []
-    #     X_T = matrix_transpose(X)
-    #     for i in range(len(X_T)):
-    #         R.append(sum(X_T[:i+1],axis=0))
-    #     return matrix_transpose(R) 
     
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
@@ -266,7 +258,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
     mm_clfs = []
-    
+    Y_nn = []
+    Y_val = []
     for f in flavors_unique:
         clfs = []
         X = X_trainS[mapping_index[f]]
@@ -295,11 +288,26 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         clf.fit(X,y)
         clfs.append(clf)
 
+        import keras
+        from keras.models import Sequential
+        from keras.layers import Dense,Activation
+        model = Sequential()
+        model.add(Dense(32,input_shape=(shape(X)[1],)))
+        model.add(Activation('relu'))
+        model.add(Dense(12))
+        model.add(Activation('relu'))
+        model.add(Dense(1))
+        import numpy as np
+        model.compile(loss='mse',optimizer='sgd',metrics=['accuracy'])
+        model.fit(np.array(X),np.array(y),epochs=20)
         # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4,8,16,24],"fit_intercept":[True]},X,y,is_shuffle=True,random_state=43,verbose=True)
-        clf.fit(X,y)
-        clfs.append(clf)
-
+        # clf.fit(X,y)
+        p =  model.predict(np.array(X_val))
+        Y_nn.append(p.tolist())
+        Y_val.append(y_val)
         mm_clfs.append(clfs)        
+
+    print(official_score(flatten(Y_nn),flatten(Y_val)))
 
     val_y = []
     val_y_ = []
