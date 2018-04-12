@@ -16,10 +16,19 @@ def stdev(X):
 
 # column vector normalize -- axix=1
 # fix bug
-def normalize(X,norm='l2',axis=1,return_norm=False,return_norm_inv=False):
+def normalize(X,y=None,norm='l2',axis=1,return_norm=False,return_norm_inv=False):
     assert(axis==0 or axis==1)
     assert(norm=='l2' or norm=='l1')
     X_T = matrix_transpose(X)
+
+    y_norm = None
+    if y!= None:
+        if norm=='l2':
+            y_norm = sqrt(sum(square(y)))
+        elif norm=='l1':
+            y_norm = sqrt(sum(abs(y)))
+    if y and y_norm == 0:
+        return X
 
     norms = []
     if axis == 0:
@@ -28,9 +37,9 @@ def normalize(X,norm='l2',axis=1,return_norm=False,return_norm_inv=False):
         for i in range(shape(X)[0]):
             n = 0
             if norm=='l2':
-                n = sqrt(sum(square(X_T[j])))
+                n = sqrt(sum(square(X_T[i]))) if not y else sqrt(sum(square(X_T[i])))/y_norm
             elif norm=='l1':
-                n = sqrt(sum(abs(X_T[j])))
+                n = sqrt(sum(abs(X_T[i]))) if not y else sqrt(sum(square(X_T[i])))/y_norm
             if n!=0:
                 A[i] = (multiply(X[i],1/float(n)))
             norms.append(n)
@@ -39,9 +48,9 @@ def normalize(X,norm='l2',axis=1,return_norm=False,return_norm_inv=False):
         for j in range(shape(X)[1]):
             n = 0
             if norm=='l2':
-                n = sum(square(X_T[j]))
+                n = sum(square(X_T[j])) if not y else sqrt(sum(square(X_T[j])))/y_norm
             elif norm=='l1':
-                n = sum(abs(X_T[j]))
+                n = sum(abs(X_T[j])) if not y else sqrt(sum(square(X_T[j])))/y_norm
             if n!=0:
                 A[j] = (multiply(X_T[j],1/float(n)))
             norms.append(n)

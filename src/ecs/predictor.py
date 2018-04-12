@@ -23,6 +23,7 @@ from preprocessing import (maxabs_scaling, minmax_scaling, normalize,
 from utils import (get_flavors_unique_mapping, get_machine_config,
                    parse_ecs_lines, parse_input_lines)
 
+from preprocessing import exponential_smoothing
 
 # add @2018-04-10
 # refactoring, do one thing.
@@ -30,7 +31,7 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     predict_start_time = predict_start_time-timedelta(days=skip)
     days_total = (predict_start_time-training_start_time).days
 
-    sample_length = (days_total-frequency)/strike
+    sample_length = ((days_total-frequency)/strike) + 1
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
     sample = zeros((sample_length,len(flavors_unique)))
@@ -77,10 +78,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    strike = 1
-    sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
+    sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=2,skip=0)
 
-    def outlier_handling(sample,method='mean',max_sigma=4):
+    def outlier_handling(sample,method='mean',max_sigma=3):
         assert(method=='mean' or method=='zero')
         sample = matrix_copy(sample)
         std_ = stdev(sample)
@@ -94,6 +94,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                         sample[i][j] = 0
         return sample
 
+    # sample = exponential_smoothing(sample,alpha=0.1)
+
+    # important
     sample = outlier_handling(sample,method='mean')
     Ys = sample[1:]
 
@@ -111,9 +114,10 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         return clustering_paths,corrcoef_sample
 
     clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=0.3)
+    # clustering_paths,coef_sample = flavor_clustering(sample,k=3)
+
+    # clustering_paths,coef_sample = flavor_clustering(sample,k=5)
     # clustering_paths contians 0 index 
-
-
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
         assert(fill_na=='mean' or fill_na=='zero')
         col = fancy(sample,None,i)
@@ -161,14 +165,14 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                 return R[:-1]
 
 
-    # do now!
-
     def get_rate_X(sample,i):
         sum_row = sum(sample,axis=1)
         R = []
 
     # def get_cpu_rate_X(sample,i):
     #         # rate_X = get_rate_X(X)
+
+
     # # def get_cpu_X(X):
     # #     cpu_config,mem_config = get_machine_config(flavors_unique)
     # #     return X
@@ -176,55 +180,75 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     # def get_mem_rate_X(sample,i):
         
     #     pass
-    def get_accumulate_X(sample,i):
-        pass
 
+
+    # def get_accumulate_X(X,i):
+    #     R = []
+    #     X_T = matrix_transpose(X)
+    #     for i in range(len(X_T)):
+    #         R.append(sum(X_T[:i+1],axis=0))
+    #     return matrix_transpose(R) 
+    
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
-        # 1. get training grid
-        X = get_feature_grid(sample,mapping_index[f],col_count=None,fill_na='mean',max_na_rate=0.5,with_test=True)
+        X = get_feature_grid(sample,mapping_index[f],col_count=int(predict_days),fill_na='mean',max_na_rate=0.5,with_test=True)
         X_test = X[-1:]
         X = X[:-1]
+
+
         y = fancy(Ys,None,mapping_index[f])
+
         # 2.use clustering data,or not
         clustering_path_f = clustering_paths[mapping_index[f]]
-        # for p in clustering_path_f:
-        #     __x = get_feature_grid(sample,p,col_count=None,fill_na='mean',max_na_rate=0.5,with_test=False)
-        #     # __x = multiply(__x,coef_sample[mapping_index[f]][p]) 
-        #     X.extend(__x)
-        #     __y = fancy(Ys,None,p)
-        #     # __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
-        #     y.extend(__y)
+        for p in clustering_path_f:
+            __x = get_feature_grid(sample,p,col_count=predict_days,fill_na='mean',max_na_rate=0.3,with_test=False)
+            # __x = multiply(__x,coef_sample[mapping_index[f]][p]) 
+            X.extend(__x)
+            __y = fancy(Ys,None,p)
+            # __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
+            y.extend(__y)
 
+        # do not delete
         X.extend(X_test)
 
         # 3.feature eningeering
-
         X_log1p = apply(X,lambda x:math.log1p(x))
-        X_sqrt = sqrt(X)
-        X_square = square(X)
-        X_cube = apply(X,lambda x:math.pow(x,3))
-
+        relu = apply(standard_scaling(X),lambda x:max(x,0))
         # add features
-        add_list= [X]
-        add_list.extend([X_log1p,X_sqrt,X_square,X_cube])
-        X = hstack(add_list)
         
+        add_list= []
+        add_list.extend([X])
+
+        # add_list.extend([relu])
+        # add_list.extend([square(X)])
+        add_list.extend([X_log1p])
+        # add_list.extend([exponential_smoothing(X,alpha=0.1)])
+        X = hstack(add_list)
+
+
         # # ---------------------------------------------
-        # X = normalize(X,norm='l1')
-        # X = normalize(X,norm='l2')
+        X = normalize(X,y=y,norm='l1')
+        # X = normalize(X,y=y,norm='l2')
         # X = minmax_scaling(X) 
-        X = maxabs_scaling(X)
+        # X = maxabs_scaling(X)
         # X = standard_scaling(X)
+        # normalize_list = [normalize(X,norm='l1'),minmax_scaling(X),standard_scaling(X)]
+        # X = hstack(normalize_list)
+
         assert(shape(X)[0]==shape(y)[0]+1)
         X_trainS.append(X[:-1])
         X_test_S.append(X[-1:])
         Y_trainS.append(y)
+
     return X_trainS,Y_trainS,X_test_S
 
-# RRE todo
+class ResRegressor:
+    
+    pass
+
+
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,verbose = True):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
@@ -241,27 +265,40 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
-    # clf clustering 
-    # 1. trainning process
     mm_clfs = []
-
+    
     for f in flavors_unique:
         clfs = []
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
-        X_test = X_testS[mapping_index[f]]
-        clf = Ridge(alpha=2,fit_intercept=True)
-        # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        # clf = bagging_estimator(Ridge,{'alpha':0.1,"fit_intercept":True},max_clf=10)
-        # clf = bagging_estimator(Dynamic_KNN_Regressor,{'k':2},max_clf=100)
-        # clf = KNN_Regressor(k=10,verbose=True)
-        # clf = grid_search_cv(Dynamic_KNN_Regressor,{'k':[2,3,4,5,6,7,8,9,10]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        # clf = Dynamic_KNN_Regressor(k=3,verbose=False)
-        clf.fit(X,y)
-        clfs.append(clf)
+
+        X_val = X_valS[mapping_index[f]]
+        y_val = Y_valS[mapping_index[f]]
+
+        # clf = Ridge(fit_intercept=True)
+        # clf.fit(X,y)
+        # clf = Dynamic_KNN_Regressor(k=4)
+        # clf = KNN_Regressor()
+
+        # # clf = grid_search_cv(Dynamic_KNN_Regressor,{'k':[4]},X,y,is_shuffle=True,random_state=43)
+        # clf.fit(X,y)
+        # clfs.append(clf)
+        # from ensemble import bagging_estimator
+        # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,8,10,16]},X,y,is_shuffle=True,random_state=42)
+
+        # clf = Ridge(alpha=1,fit_intercept=True)
+        # clf = bagging_estimator(Ridge,{})
+        # clf.fit(X,y)
+        # clfs.append(clf)
+
         clf = Ridge(alpha=1,fit_intercept=True)
         clf.fit(X,y)
         clfs.append(clf)
+
+        # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4,8,16,24],"fit_intercept":[True]},X,y,is_shuffle=True,random_state=43,verbose=True)
+        clf.fit(X,y)
+        clfs.append(clf)
+
         mm_clfs.append(clfs)        
 
     val_y = []
@@ -272,31 +309,28 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         y = Y_valS[mapping_index[f]]
         average = []
         for clf in mm_clfs[mapping_index[f]]:
-            average.append(clf.predict(X))
-        val_y_.append(mean(average,axis=0))
-        val_y.append(y)
+            average.append(clf.predict(X)[0])
+        val_y_.append(mean(average))
+        val_y.append(y[0])
+
     if verbose:
         print('\n')
         print('###############################################')
         print('validation score-->',official_score(val_y,val_y_))
 
-    test_prediction = []
+    result = []
     # 3.retraining
     for f in flavors_unique:
         X = X_trainS_raw[mapping_index[f]]
         y = Y_trainS_raw[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
-        average = []
+        p = []
         for clf in mm_clfs[mapping_index[f]]:
-            average.append(clf.predict(X_test))
-            val_y_.append(mean(average,axis=0))
-        clf = clfs[mapping_index[f]]
-        clf.fit(X,y)
-        p = clf.predict(X_test)
-        test_prediction.append(p)
+            clf.fit(X,y)
+            p.append(clf.predict(X_test)[0])
+        result.append(mean(p))
 
-    result = matrix_transpose(test_prediction)[0]
-
+    # result = matrix_transpose(test_prediction)[0]
     if verbose:
         print('predict-->',result)
 
@@ -308,12 +342,6 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     return predict,virtual_machine_sum
 
 
-
-def boosting():
-    pass
-
-
-
 # build output lines
 def predict_vm(ecs_lines,input_lines):
     if input_lines is None or ecs_lines is None:
@@ -323,6 +351,7 @@ def predict_vm(ecs_lines,input_lines):
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines,flavors_unique)
 
     predict,virtual_machine_sum = merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    # predict,virtual_machine_sum = onehot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))
