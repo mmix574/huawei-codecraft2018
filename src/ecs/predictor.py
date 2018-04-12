@@ -161,20 +161,25 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                 return R[:-1]
 
 
+    # do now!
+
     def get_rate_X(sample,i):
-        pass
+        sum_row = sum(sample,axis=1)
+        R = []
+
     def get_cpu_rate_X(sample,i):
-        pass
-    def get_mem_rate_X(sample,i):
-        pass
-    def get_accumulate_X(sample,i):
-        pass
-    #     sum_ = sum(X,axis=1)
-    #     return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
-    # rate_X = get_rate_X(X)
+            # rate_X = get_rate_X(X)
     # def get_cpu_X(X):
     #     cpu_config,mem_config = get_machine_config(flavors_unique)
     #     return X
+        pass
+    def get_mem_rate_X(sample,i):
+        
+        pass
+    def get_accumulate_X(sample,i):
+        
+        pass
+
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
@@ -186,13 +191,14 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         y = fancy(Ys,None,mapping_index[f])
         # 2.use clustering data,or not
         clustering_path_f = clustering_paths[mapping_index[f]]
-        for p in clustering_path_f:
-            __x = get_feature_grid(sample,p,col_count=None,fill_na='mean',max_na_rate=0.5,with_test=False)
-            # __x = multiply(__x,coef_sample[mapping_index[f]][p]) 
-            X.extend(__x)
-            __y = fancy(Ys,None,p)
-            # __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
-            y.extend(__y)
+        # for p in clustering_path_f:
+        #     __x = get_feature_grid(sample,p,col_count=None,fill_na='mean',max_na_rate=0.5,with_test=False)
+        #     # __x = multiply(__x,coef_sample[mapping_index[f]][p]) 
+        #     X.extend(__x)
+        #     __y = fancy(Ys,None,p)
+        #     # __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
+        #     y.extend(__y)
+
         X.extend(X_test)
 
         # 3.feature eningeering
@@ -248,9 +254,9 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         y = Y_trainS[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
         # clf = Ridge(alpha=2,fit_intercept=True)
-        # clf = Ridge(alpha=1,fit_intercept=True)
+        clf = Ridge(alpha=1,fit_intercept=True)
         # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        clf = bagging_estimator(Ridge,{'alpha':0.1,"fit_intercept":True},max_clf=10)
+        # clf = bagging_estimator(Ridge,{'alpha':0.1,"fit_intercept":True},max_clf=10)
         # clf = bagging_estimator(Dynamic_KNN_Regressor,{'k':2},max_clf=100)
         # clf = KNN_Regressor(k=10,verbose=True)
         # clf = grid_search_cv(Dynamic_KNN_Regressor,{'k':[2,3,4,5,6,7,8,9,10]},X,y,verbose=True,is_shuffle=False,scoring='score')
@@ -298,6 +304,11 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     return predict,virtual_machine_sum
 
 
+
+def boosting():
+
+    
+    pass
 
 
 # build output lines
