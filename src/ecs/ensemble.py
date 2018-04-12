@@ -1,6 +1,7 @@
 import random
-from linalg.common import shape
-from linalg.common import multiply,plus
+
+from linalg.common import multiply, plus, shape
+from metrics import l2_loss, official_score
 
 
 class bagging_estimator:
@@ -37,8 +38,6 @@ class bagging_estimator:
         return prediction
 
 
-
-from metrics import official_score,l2_loss
 # data selection based on model
 def bagging_with_model(regressor_instance,X_train,Y_train,X_val,Y_val,bagging_size=None,max_iter=100,verbose=False,scoring='score'):
     def bagging(X_train,Y_train,bagging_size=None):

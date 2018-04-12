@@ -4,10 +4,11 @@ import re
 from datetime import datetime, timedelta
 
 from backpack import backpack_random_k_times
-from learn.knn import KNN_Regressor,Dynamic_KNN_Regressor
+from ensemble import bagging_estimator
+from learn.knn import Dynamic_KNN_Regressor, KNN_Regressor
 from learn.lasso import Lasso
-from learn.ridge import Ridge
 from learn.linear_model import LinearRegression
+from learn.ridge import Ridge
 from linalg.common import (apply, dim, dot, fancy, flatten, mean, minus,
                            multiply, plus, reshape, shape, sqrt, square, sum,
                            zeros)
@@ -19,10 +20,9 @@ from model_selection import cross_val_score, grid_search_cv, train_test_split
 from predictions.base import BasePredictor
 from preprocessing import (maxabs_scaling, minmax_scaling, normalize,
                            standard_scaling)
-from utils import (get_flavors_unique_mapping, parse_ecs_lines,
-                   parse_input_lines)
+from utils import (get_flavors_unique_mapping, get_machine_config,
+                   parse_ecs_lines, parse_input_lines)
 
-from ensemble import bagging_estimator
 
 # add @2018-04-10
 # refactoring, do one thing.
@@ -72,7 +72,6 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 # [1--2--3....|..........n]
 # sparse feature--  dense feature
 
-from utils import get_machine_config
 # fix griding bug @2018-04-12
 def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,outlier_handeling=True):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
@@ -168,9 +167,13 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                 return R[:-1]
 
 
-    # rate of flover 
-    def get_rate_X(X,i):
+    def get_rate_X(sample,i):
         pass
+    def get_cpu_rate_X(sample,i):
+        pass
+    def get_mem_rate_X(sample,i):
+        pass
+
     #     sum_ = sum(X,axis=1)
     #     return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
     # rate_X = get_rate_X(X)
@@ -183,29 +186,30 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     for f in flavors_unique:
         fill_na = 'mean'
-        max_na_rate = 0.4
+        max_na_rate = 0.7
+        # 1. get training grid
         X = get_feature_grid(sample,mapping_index[f],col_count=None,fill_na=fill_na,max_na_rate=max_na_rate,with_test=True)
         X_test = X[-1:]
         X = X[:-1]
         y = fancy(Ys,None,mapping_index[f])
-
-        clustering_path_f = clustering_paths[mapping_index[f]]
-        for p in clustering_path_f:
-            X.extend(get_feature_grid(sample,p,fill_na=fill_na,max_na_rate=max_na_rate,with_test=False))
-            y.extend(fancy(Ys,None,p))
-
+        # 2.use clustering data,or not
+        # clustering_path_f = clustering_paths[mapping_index[f]]
+        # for p in clustering_path_f:
+        #     X.extend(get_feature_grid(sample,p,fill_na=fill_na,max_na_rate=max_na_rate,with_test=False))
+        #     y.extend(fancy(Ys,None,p))
         X.extend(X_test)
-        # feature_grid_log1p = apply(feature_grid,lambda x:math.log1p(x))
-        # feature_grid_sqrt = sqrt(feature_grid)
-        # feature_grid_square = square(feature_grid)
-        # add_list= [feature_grid] #	77.804
-        # # add_list.extend([feature_grid_sqrt])
-        # # add_list.extend([feature_grid_log1p]) # 77.998
-        # # add_list.extend([feature_grid_square])
-        # # add_list.extend([coef_X[mapping_index[f]]])
-        # # add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
-        # feature_grid = hstack(add_list)
 
+        # 3.feature eningeering
+
+        X_log1p = apply(X,lambda x:math.log1p(x))
+        X_sqrt = sqrt(X)
+        X_square = square(X)
+        X_cube = apply(X,lambda x:math.pow(x,3))
+
+        # add features
+        add_list= [X] #	77.804
+        add_list.extend([X_sqrt,X_square,X_cube])
+        X = hstack(add_list)
         
         # # ---------------------------------------------
         # X = normalize(X,norm='l1')
@@ -254,13 +258,15 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         y = Y_trainS[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
         # clf = Ridge(alpha=2,fit_intercept=True)
-        # clf = Ridge(alpha=1,fit_intercept=True)
-        clf = grid_search_cv(Ridge,{'alpha':[0.01,0.0001,0.1,1,2,4,8],'fit_intercept':[True,False]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        # clf = bagging_estimator(Ridge,{'alpha':3,"fit_intercept":True},max_clf=10)
+        clf = Ridge(alpha=1,fit_intercept=True)
+        # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
+        # clf = bagging_estimator(Ridge,{'alpha':1,"fit_intercept":True},max_clf=10)
+        from ensemble import bagging_with_model
+        X_,y_ = bagging_with_model(clf,X,y,X,y)
         # clf = KNN_Regressor(k=4,verbose=True)
-        # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
-        # clf = Dynamic_KNN_Regressor(k=3,verbose=False)
-        clf.fit(X,y)
+        # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]},X,y,verbose=True,is_shuffle=False,scoring='loss')
+        # clf = Dynamic_KNN_Regressor(k=4,verbose=False)
+        clf.fit(X_,y_)
         clfs.append(clf)
 
     val_y = []
@@ -301,6 +307,9 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
+
+
+
 
 
 
