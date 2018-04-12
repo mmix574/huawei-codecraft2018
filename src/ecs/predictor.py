@@ -95,7 +95,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         return sample
 
     # important
-    sample = outlier_handling(sample,method='zero',max_sigma=max_sigma)
+    sample = outlier_handling(sample,method='mean',max_sigma=max_sigma)
     Ys = sample[1:]
 
     def flavor_clustering(sample,k=3,variance_threshold=None):
@@ -112,7 +112,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         return clustering_paths,corrcoef_sample
 
     clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=0.6)
-    # clustering_paths,coef_sample = flavor_clustering(sample,k=1)
+    # clustering_paths,coef_sample = flavor_clustering(sample,k=3)
     # clustering_paths,coef_sample = flavor_clustering(sample,k=5)
 
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
@@ -167,10 +167,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         cpu_config,mem_config = get_machine_config(flavors_unique)
         R = []
 
-
-
     def get_cpu_rate_X(sample,i):
-
         pass
 
 
@@ -216,6 +213,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         # normalize_list = [normalize(X,norm='l1'),normalize(X,y=y,norm='l2')]
         # X = hstack(normalize_list)
 
+        # remove variance
+
         assert(shape(X)[0]==shape(y)[0]+1)
         X_trainS.append(X[:-1])
         X_test_S.append(X[-1:])
@@ -231,11 +230,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     virtual_machine_sum = 0
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
-    clf = Ridge(alpha=250,fit_intercept=True)
-    # clf = bagging_estimator(Ridge,{'alpha':[200,300,400]})
-    # clf = Dynamic_KNN_Regressor(k=15)
-    # clf = KNN_Regressor(k=10)
-    # clf = Regularized_KNN_Regressor(k=22,alpha=6)
+    clf = Ridge(alpha=2.5,fit_intercept=True)
 
     R = []
     X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,max_sigma=2.9)
@@ -252,6 +247,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     for i in range(len(flavors_unique)):    
         X = X_trainS[i]
         y = Y_trainS[i]
+        # clf = grid_search_cv(Ridge,{'alpha':[200,300,400]},X,y,is_shuffle=True)
         clf.fit(X,y)
         train.append(clf.predict(X))
         val.append(clf.predict(X_valS[i]))
