@@ -82,6 +82,8 @@ def minmax_scaling(X,axis=1):
     return matrix_transpose(R)
     
 def standard_scaling(X,axis=1):
+    if axis==0:
+        return matrix_transpose(standard_scaling(matrix_transpose(X),axis=1))
     R = []
     for j in range(shape(X)[1]):
         col = fancy(X,None,j)     

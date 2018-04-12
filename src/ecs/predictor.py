@@ -78,7 +78,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=2,skip=0)
+    sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=1,skip=0)
 
     def outlier_handling(sample,method='mean',max_sigma=3):
         assert(method=='mean' or method=='zero')
@@ -170,7 +170,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 
     def get_cpu_rate_X(sample,i):
-        
         pass
 
     # # def get_cpu_X(X):
@@ -195,11 +194,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         # 2.use clustering data,or not
         clustering_path_f = clustering_paths[mapping_index[f]]
         for p in clustering_path_f:
-            __x = get_feature_grid(sample,p,col_count=predict_days,fill_na='mean',max_na_rate=0.3,with_test=False)
-            # __x = multiply(__x,coef_sample[mapping_index[f]][p]) 
+            __x = get_feature_grid(sample,p,col_count=predict_days,fill_na='mean',max_na_rate=0.5,with_test=False)
+            __x = multiply(__x,coef_sample[mapping_index[f]][p]) 
             X.extend(__x)
             __y = fancy(Ys,None,p)
-            # __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
+            __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
             y.extend(__y)
 
         # do not delete
@@ -215,8 +214,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         # add_list.extend([relu])
         # add_list.extend([square(X)])
-        add_list.extend([X_log1p])
-        # add_list.extend([exponential_smoothing(X,alpha=0.1)])
+        # add_list.extend([X_log1p])
+        add_list.extend([exponential_smoothing(X,alpha=0.1)])
         X = hstack(add_list)
 
 
@@ -258,7 +257,6 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
     mm_clfs = []
-    Y_nn = []
     Y_val = []
     for f in flavors_unique:
         clfs = []
@@ -268,46 +266,29 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         X_val = X_valS[mapping_index[f]]
         y_val = Y_valS[mapping_index[f]]
 
-        # clf = Ridge(fit_intercept=True)
+        clf = Ridge(fit_intercept=True)
         # clf.fit(X,y)
-        # clf = Dynamic_KNN_Regressor(k=4)
+        # clf = Dynamic_KNN_Regressor(k=1,verbose=True)
         # clf = KNN_Regressor()
-
         # # clf = grid_search_cv(Dynamic_KNN_Regressor,{'k':[4]},X,y,is_shuffle=True,random_state=43)
-        # clf.fit(X,y)
+        # # clf.fit(X,y)
         # clfs.append(clf)
-        # from ensemble import bagging_estimator
+        from ensemble import bagging_estimator
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,8,10,16]},X,y,is_shuffle=True,random_state=42)
-
+        
         # clf = Ridge(alpha=1,fit_intercept=True)
-        # clf = bagging_estimator(Ridge,{})
+        # clf = bagging_estimator(Dynamic_KNN_Regressor,{})
         # clf.fit(X,y)
         # clfs.append(clf)
-
-        clf = Ridge(alpha=1,fit_intercept=True)
+        from learn.knn import Regularized_KNN_Regressor
+        # clf = grid_search_cv(Ridge,{'alpha':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]},X,y,is_shuffle=True,random_state=42,verbose=True,scoring='loss')
+        clf = grid_search_cv(Regularized_KNN_Regressor,{'alpha':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]},X,y,is_shuffle=True,random_state=42,verbose=True,scoring='loss')
+        
+        # clf = Regularized_KNN_Regressor(alpha=15)
         clf.fit(X,y)
         clfs.append(clf)
-
-        import keras
-        from keras.models import Sequential
-        from keras.layers import Dense,Activation
-        model = Sequential()
-        model.add(Dense(32,input_shape=(shape(X)[1],)))
-        model.add(Activation('relu'))
-        model.add(Dense(12))
-        model.add(Activation('relu'))
-        model.add(Dense(1))
-        import numpy as np
-        model.compile(loss='mse',optimizer='sgd',metrics=['accuracy'])
-        model.fit(np.array(X),np.array(y),epochs=20)
-        # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4,8,16,24],"fit_intercept":[True]},X,y,is_shuffle=True,random_state=43,verbose=True)
-        # clf.fit(X,y)
-        p =  model.predict(np.array(X_val))
-        Y_nn.append(p.tolist())
-        Y_val.append(y_val)
         mm_clfs.append(clfs)        
 
-    print(official_score(flatten(Y_nn),flatten(Y_val)))
 
     val_y = []
     val_y_ = []

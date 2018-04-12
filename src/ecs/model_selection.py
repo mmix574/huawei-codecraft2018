@@ -109,10 +109,10 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
             # return (sorted(scores)[len(scores)/2] + mean(scores) - std)/2.0
             # return sorted(scores)[len(scores)/2] - std
             # return max(scores)
-            # return mean(scores)
+            return mean(scores)
             # return mean(sorted(scores)[::-1][:len(scores)/2])
             # return (mean(scores) + max(scores))/2.0
-            return mean(scores) - std
+            # return mean(scores) - std
             # return mean(scores) -0.5*std
         elif scoring=='loss':
             # return mean(losses)

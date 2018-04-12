@@ -1,4 +1,4 @@
-from linalg.common import abs, dim, mean, minus, shape, square, sum
+from linalg.common import abs, dim, mean, minus, shape, square, sum,sqrt,dot,multiply
 from linalg.matrix import diag, matrix_matmul, matrix_transpose
 from linalg.vector import argsort
 
@@ -31,13 +31,13 @@ class KNN_Regressor:
             result.append(mean(ys,axis=0))
         return result  
 
-# todo 
 class Regularized_KNN_Regressor:
-    def __init__(self,k=3,verbose=False):
+    def __init__(self,k=3,verbose=False,alpha=1):
         self.X = None
         self.y = None
         self.k = k
         self.verbose = verbose
+        self.alpha = alpha
 
     def fit(self,X,y):
         self.X = X
@@ -46,12 +46,18 @@ class Regularized_KNN_Regressor:
     def predict(self,X):
         result = []
         # dim_X = dim(X)
-
         if dim(X) == 1:
             X = [X]
         for x in X:
             loss = sum(square(minus(self.X,x)),axis=1)
             # loss = sum(abs(minus(self.X,x)),axis=1)
+
+
+            from preprocessing import standard_scaling
+            new_X = standard_scaling(self.X,axis=0)
+            x = sqrt(square(minus(x,mean(x))))
+            loss = minus(loss,multiply(dot(new_X,x),self.alpha))
+
             index = argsort(loss)[:self.k]
             if self.verbose:
                 print(index,'/len',len(loss))

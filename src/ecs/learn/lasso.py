@@ -39,6 +39,7 @@ class Lasso:
             beta[0] = sum(minus(reshape(y,-1) , dot(X, beta[1:])))/(shape(X)[0])
 
         for _ in range(self.max_iter):
+            print(_)
             start = 1 if self.fit_intercept else 0
             for j in range(start, len(beta)):
                 tmp_beta = [x for x in beta]
