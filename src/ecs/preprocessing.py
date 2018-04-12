@@ -112,3 +112,4 @@ def exponential_smoothing(A,axis=0,alpha=0.1):
         C = plus(P,Q)
         R.append(C)
     return R
+

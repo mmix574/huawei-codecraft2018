@@ -26,7 +26,7 @@ from ensemble import bagging_estimator
 
 # add @2018-04-10
 # refactoring, do one thing.
-def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=7,strike=3,skip=0):
+def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=7,strike=1,skip=0):
     predict_start_time = predict_start_time-timedelta(days=skip)
     days_total = (predict_start_time-training_start_time).days
 
@@ -72,69 +72,108 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 # [1--2--3....|..........n]
 # sparse feature--  dense feature
 
-
+from utils import get_machine_config
+# fix griding bug @2018-04-12
 def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,outlier_handeling=True):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
     strike = 1
-    X = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
-    Y = X[1:]
+    sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=0)
 
-    def outlier_handling(X,method='mean',max_sigma=3):
+    def outlier_handling(sample,method='mean',max_sigma=3):
         assert(method=='mean' or method=='zero')
-        X = matrix_copy(X)
-        std_ = stdev(X)
-        mean_ = mean(X,axis=1)
-        for i in range(shape(X)[0]):
-            for j in range(shape(X)[1]):
-               if X[i][j]-mean_[j] >max_sigma*std_[j]:
+        sample = matrix_copy(sample)
+        std_ = stdev(sample)
+        mean_ = mean(sample,axis=1)
+        for i in range(shape(sample)[0]):
+            for j in range(shape(sample)[1]):
+               if sample[i][j]-mean_[j] >max_sigma*std_[j]:
                     if method=='mean':
-                        X[i][j] = mean_[j]
+                        sample[i][j] = mean_[j]
                     elif method=='zero':
-                        X[i][j] = 0
-        return X
-    
+                        sample[i][j] = 0
+        return sample
+
+
     if outlier_handeling:
-        X = outlier_handling(X,method='mean')
-    
-    def flavor_clustering(X,k=3,variance_threshold=None):
-        corrcoef_X = corrcoef(X)
+        sample = outlier_handling(sample,method='mean')
+    Ys = sample[1:]
+
+    def flavor_clustering(sample,k=3,variance_threshold=None):
+        corrcoef_sample = corrcoef(sample)
         clustering_paths = []
-        coef_X = []
-        for i in range(shape(X)[1]):
-            col = corrcoef_X[i]
+        coef_sample = []
+        for i in range(shape(sample)[1]):
+            col = corrcoef_sample[i]
             col_index_sorted = argsort(col)[::-1]
             if variance_threshold!=None:
                 index = [i  for i in col_index_sorted if col[i]>variance_threshold]
             else:
                 index = col_index_sorted[1:k+1]
             coef = fancy(col,index)
-            coef_X.append(coef)
+            coef_sample.append(coef)
 
             clustering_paths.append(index)
-        return clustering_paths,coef_X
+        return clustering_paths,coef_sample
 
-    clustering_paths,coef_X = flavor_clustering(X)
+    clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=0.5)
+    # clustering_paths contians 0 index 
 
-    # todo 
-    def get_feature_grid(X,i,fill_na='mean',max_na_rate=1):
+
+    def get_feature_grid(coef_sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
         assert(fill_na=='mean' or fill_na=='zero')
+        col = fancy(coef_sample,None,i)
+        R = []
+        for j in range(len(col)):
+            left = [None for _ in range(len(col)-j)]
+            right = col[:j]
+            r = []
+            r.extend(left)
+            r.extend(right)
+            R.append(r)
+
+        def _mean_with_none(A):
+            if len(A)==0:
+                return 0
+            else:
+                count = 0
+                for i in range(len(A)):
+                    if A[i]!=None:
+                        count+=A[i]
+                return count/float(len(A))
         
+        means = []
+        for j in range(shape(R)[1]):
+            means.append(_mean_with_none(fancy(R,None,j)))
+        
+        width = int((1-max_na_rate) * shape(R)[1])
+        R = fancy(R,None,(width,))
+        for _ in range(shape(R)[0]):
+            for j in range(shape(R)[1]):
+                    if R[_][j]==None:
+                        if fill_na=='mean':
+                            R[_][j] = means[j]
+                        elif fill_na=='zero':
+                            R[_][j]==0
+        if with_test:
+            if col_count!=None:
+                return fancy(R,None,(-col_count,))
+            else:
+                return R
+        else:
+            if col_count!=None:
+                return fancy(R,None,(-col_count,))
+            else:            
+                return R[:-1]
 
-        pass
 
-    # 2018-04-12
-    # handcraft feature engineering ..       
-    # -------------------
-    from utils import get_machine_config
-    def get_rate_X(X):
+    # rate of flover 
+    def get_rate_X(X,i):
         pass
     #     sum_ = sum(X,axis=1)
     #     return [X[i] if sum_[i]==0 else multiply(X[i],1/float(sum_[i])) for i in range(shape(X)[0])]
     # rate_X = get_rate_X(X)
-
-
     # def get_cpu_X(X):
     #     cpu_config,mem_config = get_machine_config(flavors_unique)
     #     return X
@@ -143,78 +182,47 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
-        history = fancy(X,None,mapping_index[f])
-        y = fancy(Y,None,mapping_index[f])
-        feature_grid = []
+        fill_na = 'mean'
+        max_na_rate = 0.4
+        X = get_feature_grid(sample,mapping_index[f],col_count=None,fill_na=fill_na,max_na_rate=max_na_rate,with_test=True)
+        X_test = X[-1:]
+        X = X[:-1]
+        y = fancy(Ys,None,mapping_index[f])
+
+        clustering_path_f = clustering_paths[mapping_index[f]]
+        for p in clustering_path_f:
+            X.extend(get_feature_grid(sample,p,fill_na=fill_na,max_na_rate=max_na_rate,with_test=False))
+            y.extend(fancy(Ys,None,p))
+
+        X.extend(X_test)
+        # feature_grid_log1p = apply(feature_grid,lambda x:math.log1p(x))
+        # feature_grid_sqrt = sqrt(feature_grid)
+        # feature_grid_square = square(feature_grid)
+        # add_list= [feature_grid] #	77.804
+        # # add_list.extend([feature_grid_sqrt])
+        # # add_list.extend([feature_grid_log1p]) # 77.998
+        # # add_list.extend([feature_grid_square])
+        # # add_list.extend([coef_X[mapping_index[f]]])
+        # # add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
+        # feature_grid = hstack(add_list)
 
         
-        # building feature grid
-        for i in range(len(history)):
-            fea = []
-            # if len(history[:i+1])==0:
-            #     m = 0
-            # else:
-            #     m = sorted(history[:i+1])[len(history[:i+1])/2]
+        # # ---------------------------------------------
+        # X = normalize(X,norm='l1')
+        # X = normalize(X,norm='l2')
+        # X = minmax_scaling(X) 
+        X = maxabs_scaling(X)
+        # X = standard_scaling(X)
 
-            m = mean(history[:i+1])
-            fea.extend([m for _ in range(len(history)-1-i)])
-            # fea.extend([0 for _ in range(len(history)-1-i)])
-            fea.extend(history[:i+1])
-            feature_grid.append(fea)
-
-        feature_grid = fancy(feature_grid,None,(-4,))
-
-        # max_zero_percent = 1
-        # keep = []
-        # feature_grid_T = matrix_transpose(feature_grid)
-        # for col in feature_grid_T:
-        #     if (1-(count_nonezero(col))/float(len(col)))<max_zero_percent :
-        #         keep.append(True)
-        #     else:
-        #         keep.append(False)
-        # feature_grid = fancy(feature_grid,-1,keep)
-
-        feature_grid_log1p = apply(feature_grid,lambda x:math.log1p(x))
-        feature_grid_sqrt = sqrt(feature_grid)
-        feature_grid_square = square(feature_grid)
-        add_list= [feature_grid] #	77.804
-
-        add_list.extend([feature_grid_sqrt])
-        add_list.extend([feature_grid_log1p]) # 77.998
-        add_list.extend([feature_grid_square])
-        # add_list.extend([coef_X[mapping_index[f]]])
-        # add_list.extend([fancy(rate_X,None,(mapping_index[f],mapping_index[f]+1))])
-        feature_grid = hstack(add_list)
-
-        # exit()
-        # ---------------------------------------------
-        # ..filter the sparse feature by checking stdev..
-        # std = stdev(feature_grid)
-        # m = sorted(std)[int(len(std)*(1/float(2.0)))]
-        # keep = [False if s<m else True for s in std]
-        # feature_grid = fancy(feature_grid,-1,keep)
-
-
-
-        # ---------------------------------------------
-        feature_grid = normalize(feature_grid,norm='l1')
-        # feature_grid = normalize(feature_grid,norm='l2')
-        # feature_grid = minmax_scaling(feature_grid) 
-        # feature_grid = maxabs_scaling(feature_grid)
-        # feature_grid = standard_scaling(feature_grid)
-
-        # rescaling_list = [normalize(feature_grid,norm='l1'),normalize(feature_grid,norm='l2'),minmax_scaling(feature_grid),maxabs_scaling(feature_grid),standard_scaling(feature_grid)]
-        # feature_grid = hstack(rescaling_list)
-
-        X_trainS.append(feature_grid[:-1])
-        X_test_S.append(feature_grid[-1:])
-        Y_trainS.append(fancy(Y,None,mapping_index[f]))
-
+        assert(shape(X)[0]==shape(y)[0]+1)
+        X_trainS.append(X[:-1])
+        X_test_S.append(X[-1:])
+        Y_trainS.append(y)
     return X_trainS,Y_trainS,X_test_S
 
 
 # code backup..
-# nclf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=True)
+# nclf = Ridge(alpha=2,fit_intercept=True,bias_penalty=True)
 # nclf = Dynamic_KNN_Regressor(k=3,verbose=False)
 # nclf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[True]},nx,ny,verbose=True,is_shuffle=False,scoring='loss')
 
@@ -233,26 +241,23 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
 
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
-    
 
     # nx = vstack(X_trainS)
     # ny = vstack(Y_trainS)
     # nclf = KNN_Regressor(k=3)
-
     
     # clf clustering 
-
     # 1. trainning process
     clfs = []
     for f in flavors_unique:
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
-        # clf = Ridge(alpha=2,fit_intercept=True,bias_no_penalty=False)
-        # clf = Ridge(alpha=1,fit_intercept=True,bias_no_penalty=False)
-        # clf = grid_search_cv(Ridge,{'alpha':[0.01,0.0001,0.1,1],'fit_intercept':[True,False],'bias_no_penalty':[True,False]},X,y,verbose=True,is_shuffle=False,scoring='score')
-        # clf = bagging_estimator(Ridge,{'alpha':3,"fit_intercept":True,"bias_no_penalty":False},max_clf=10)
-        clf = KNN_Regressor(k=10,verbose=True)
+        # clf = Ridge(alpha=2,fit_intercept=True)
+        # clf = Ridge(alpha=1,fit_intercept=True)
+        clf = grid_search_cv(Ridge,{'alpha':[0.01,0.0001,0.1,1,2,4,8],'fit_intercept':[True,False]},X,y,verbose=True,is_shuffle=False,scoring='score')
+        # clf = bagging_estimator(Ridge,{'alpha':3,"fit_intercept":True},max_clf=10)
+        # clf = KNN_Regressor(k=4,verbose=True)
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'verbose':[False]},X,y,verbose=False,is_shuffle=False,scoring='loss')
         # clf = Dynamic_KNN_Regressor(k=3,verbose=False)
         clf.fit(X,y)
