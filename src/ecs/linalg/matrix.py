@@ -100,14 +100,16 @@ def matrix_inverse(A):
     
 def matrix_transpose(A):
     assert(dim(A)==2)
-    m = shape(A)[0]
-    n = shape(A)[1]
-    result = []
-    for j in range(n):
-        r = []
-        for i in range(m):
-            r.append(A[i][j])
-        result.append(r)
+    # m = shape(A)[0]
+    # n = shape(A)[1]
+    # result = []
+    # for j in range(n):
+    #     r = []
+    #     for i in range(m):
+    #         print(j,len(A[i]))
+    #         r.append(A[i][j])
+    #     result.append(r)
+    result = [list(i) for i in zip(*A)]
     return result
 
 def matrix_copy(A):

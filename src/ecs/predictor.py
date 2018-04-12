@@ -74,7 +74,7 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     # sparse feature--  dense feature
 
 # fix griding bug @2018-04-12
-def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
+def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,max_sigma=3):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
@@ -94,10 +94,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                         sample[i][j] = 0
         return sample
 
-    # sample = exponential_smoothing(sample,alpha=0.1)
-
     # important
-    # sample = outlier_handling(sample,method='mean')
+    sample = outlier_handling(sample,method='zero',max_sigma=max_sigma)
     Ys = sample[1:]
 
     def flavor_clustering(sample,k=3,variance_threshold=None):
@@ -113,8 +111,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             clustering_paths.append(index)
         return clustering_paths,corrcoef_sample
 
-    clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=0.3)
-    # clustering_paths,coef_sample = flavor_clustering(sample,k=3)
+    clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=0.6)
+    # clustering_paths,coef_sample = flavor_clustering(sample,k=1)
     # clustering_paths,coef_sample = flavor_clustering(sample,k=5)
 
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
@@ -193,20 +191,21 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             __y = fancy(Ys,None,p)
             # __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
             y.extend(__y)
+            
         # do not delete
         X.extend(X_test)
         # 3.feature eningeering
-        # X_log1p = apply(X,lambda x:math.log1p(x))
+        X_log1p = apply(X,lambda x:math.log1p(x))
         # relu = apply(standard_scaling(X),lambda x:min(x,0))
         # add features
         
         add_list= [X]
         # add_list.extend([X])
         # add_list.extend([square(X)])
-        # add_list.extend([X_log1p])
-        # add_list.extend([relu])
-        X = hstack(add_list)
+        add_list.extend([X_log1p])
+        add_list.extend([exponential_smoothing(X)])
 
+        X = hstack(add_list)
 
         # # ---------------------------------------------
         X = normalize(X,y=y,norm='l1')
@@ -239,7 +238,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     # clf = Regularized_KNN_Regressor(k=22,alpha=6)
 
     R = []
-    X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,max_sigma=2.9)
 
     X_trainS = fancy(X_trainS_raw,None,(0,-3),None)
     Y_trainS = fancy(Y_trainS_raw,None,(0,-3))
