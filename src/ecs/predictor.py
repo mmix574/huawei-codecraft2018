@@ -167,17 +167,16 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         sum_row = sum(sample,axis=1)
         R = []
 
-    def get_cpu_rate_X(sample,i):
-            # rate_X = get_rate_X(X)
-    # def get_cpu_X(X):
-    #     cpu_config,mem_config = get_machine_config(flavors_unique)
-    #     return X
-        pass
-    def get_mem_rate_X(sample,i):
+    # def get_cpu_rate_X(sample,i):
+    #         # rate_X = get_rate_X(X)
+    # # def get_cpu_X(X):
+    # #     cpu_config,mem_config = get_machine_config(flavors_unique)
+    # #     return X
+    #     pass
+    # def get_mem_rate_X(sample,i):
         
-        pass
+    #     pass
     def get_accumulate_X(sample,i):
-        
         pass
 
 
@@ -242,19 +241,16 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
-    # nx = vstack(X_trainS)
-    # ny = vstack(Y_trainS)
-    # nclf = KNN_Regressor(k=3)
-    
     # clf clustering 
     # 1. trainning process
-    clfs = []
+    mm_clfs = []
+
     for f in flavors_unique:
+        clfs = []
         X = X_trainS[mapping_index[f]]
         y = Y_trainS[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
-        # clf = Ridge(alpha=2,fit_intercept=True)
-        clf = Ridge(alpha=1,fit_intercept=True)
+        clf = Ridge(alpha=2,fit_intercept=True)
         # clf = grid_search_cv(Ridge,{'alpha':[0.1,1,2,4],'fit_intercept':[True]},X,y,verbose=True,is_shuffle=False,scoring='score')
         # clf = bagging_estimator(Ridge,{'alpha':0.1,"fit_intercept":True},max_clf=10)
         # clf = bagging_estimator(Dynamic_KNN_Regressor,{'k':2},max_clf=100)
@@ -263,6 +259,10 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         # clf = Dynamic_KNN_Regressor(k=3,verbose=False)
         clf.fit(X,y)
         clfs.append(clf)
+        clf = Ridge(alpha=1,fit_intercept=True)
+        clf.fit(X,y)
+        clfs.append(clf)
+        mm_clfs.append(clfs)        
 
     val_y = []
     val_y_ = []
@@ -270,15 +270,15 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     for f in flavors_unique:
         X = X_valS[mapping_index[f]]
         y = Y_valS[mapping_index[f]]
-        clf = clfs[mapping_index[f]]
-        val_y_.append(clf.predict(X))
+        average = []
+        for clf in mm_clfs[mapping_index[f]]:
+            average.append(clf.predict(X))
+        val_y_.append(mean(average,axis=0))
         val_y.append(y)
-
     if verbose:
         print('\n')
         print('###############################################')
         print('validation score-->',official_score(val_y,val_y_))
-
 
     test_prediction = []
     # 3.retraining
@@ -286,6 +286,10 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         X = X_trainS_raw[mapping_index[f]]
         y = Y_trainS_raw[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
+        average = []
+        for clf in mm_clfs[mapping_index[f]]:
+            average.append(clf.predict(X_test))
+            val_y_.append(mean(average,axis=0))
         clf = clfs[mapping_index[f]]
         clf.fit(X,y)
         p = clf.predict(X_test)
@@ -306,9 +310,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
 
 
 def boosting():
-
-    
     pass
+
 
 
 # build output lines
