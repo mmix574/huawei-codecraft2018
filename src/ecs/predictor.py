@@ -220,8 +220,8 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 
         # # ---------------------------------------------
-        X = normalize(X,y=y,norm='l1')
-        # X = normalize(X,y=y,norm='l2')
+        # X = normalize(X,y=y,norm='l1')
+        X = normalize(X,y=y,norm='l2')
         # X = minmax_scaling(X) 
         # X = maxabs_scaling(X)
         # X = standard_scaling(X)
@@ -234,10 +234,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         Y_trainS.append(y)
 
     return X_trainS,Y_trainS,X_test_S
-
-class ResRegressor:
-    
-    pass
 
 
 def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,verbose = True):
@@ -266,42 +262,52 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         X_val = X_valS[mapping_index[f]]
         y_val = Y_valS[mapping_index[f]]
 
-        clf = Ridge(fit_intercept=True)
-        # clf.fit(X,y)
-        # clf = Dynamic_KNN_Regressor(k=1,verbose=True)
-        # clf = KNN_Regressor()
-        # # clf = grid_search_cv(Dynamic_KNN_Regressor,{'k':[4]},X,y,is_shuffle=True,random_state=43)
-        # # clf.fit(X,y)
-        # clfs.append(clf)
-        from ensemble import bagging_estimator
+        clf = Ridge(alpha=1,fit_intercept=True)
+        clf.fit(X,y)
+        clfs.append(clf)
+        
+        # # clf = Dynamic_KNN_Regressor(k=1,verbose=True)
+        clf = KNN_Regressor()
+        # # # clf = grid_search_cv(Dynamic_KNN_Regressor,{'k':[4]},X,y,is_shuffle=True,random_state=43)
+        clf.fit(X,y)
+        clfs.append(clf)
+        # from ensemble import bagging_estimator
         # clf = grid_search_cv(KNN_Regressor,{'k':[3,4,5,8,10,16]},X,y,is_shuffle=True,random_state=42)
         
-        # clf = Ridge(alpha=1,fit_intercept=True)
+        clf = Ridge(alpha=8,fit_intercept=True)
         # clf = bagging_estimator(Dynamic_KNN_Regressor,{})
-        # clf.fit(X,y)
-        # clfs.append(clf)
+        clf.fit(X,y)
+        clfs.append(clf)
         from learn.knn import Regularized_KNN_Regressor
         # clf = grid_search_cv(Ridge,{'alpha':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]},X,y,is_shuffle=True,random_state=42,verbose=True,scoring='loss')
-        clf = grid_search_cv(Regularized_KNN_Regressor,{'alpha':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]},X,y,is_shuffle=True,random_state=42,verbose=True,scoring='loss')
+        # clf = grid_search_cv(Regularized_KNN_Regressor,{'alpha':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]},X,y,is_shuffle=True,random_state=42,verbose=True,scoring='loss')
         
-        # clf = Regularized_KNN_Regressor(alpha=15)
+        clf = Regularized_KNN_Regressor(k=4,alpha=5)
         clf.fit(X,y)
         clfs.append(clf)
         mm_clfs.append(clfs)        
 
-
     val_y = []
     val_y_ = []
     # 2.validation process
+    dynamic_loss = []
     for f in flavors_unique:
         X = X_valS[mapping_index[f]]
         y = Y_valS[mapping_index[f]]
         average = []
         for clf in mm_clfs[mapping_index[f]]:
             average.append(clf.predict(X)[0])
+
+        dynamic_loss.append(average)
         val_y_.append(mean(average))
         val_y.append(y[0])
 
+    dynamic_loss = (minus(matrix_transpose(dynamic_loss),val_y))
+    dynamic_loss = apply(dynamic_loss,lambda x:abs(x))
+    dynamic_loss_sum = sum(dynamic_loss,axis=0)
+    dynamic_loss_sum = [1/float(x) if x!=0 else 1/float(shape(dynamic_loss)[0]) for x in dynamic_loss_sum]
+    weights = multiply(dynamic_loss,dynamic_loss_sum)
+    
     if verbose:
         print('\n')
         print('###############################################')
@@ -314,10 +320,13 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         y = Y_trainS_raw[mapping_index[f]]
         X_test = X_testS[mapping_index[f]]
         p = []
+        i = 0
         for clf in mm_clfs[mapping_index[f]]:
             clf.fit(X,y)
-            p.append(clf.predict(X_test)[0])
-        result.append(mean(p))
+            p.append(clf.predict(X_test)[0] * weights[i][mapping_index[f]])
+            print(p)
+            i+=1
+        result.append(sum(p))
 
     # result = matrix_transpose(test_prediction)[0]
     if verbose:
