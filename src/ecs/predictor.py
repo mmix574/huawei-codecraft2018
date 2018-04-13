@@ -93,9 +93,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                         sample[i][j] = 0
         return sample
 
-    sample = outlier_handling(sample,method='zero',max_sigma=5)
+    # sample = outlier_handling(sample,method='zero',max_sigma=5)
     sample = outlier_handling(sample,method='mean',max_sigma=3)
-    sample = exponential_smoothing(sample,alpha=0.1)
+    # sample = exponential_smoothing(sample,alpha=0.1)
     
     Ys = sample[1:]
 
@@ -178,14 +178,18 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         X_test = X[-1:]
         X = X[:-1]
         y = fancy(Ys,None,mapping_index[f])
+
+        # X = vstack([X,X[:-1]])
+        # y = vstack([y,y[1:]])
+
         X.extend(X_test)
 
-        X_rate = get_rate_X(sample,mapping_index[f])
-        X_cpu_rate = get_cpu_rate_X(sample,mapping_index[f])
-        X_mem_rate = get_men_rate_X(sample,mapping_index[f])
+        # X_rate = get_rate_X(sample,mapping_index[f])
+        # X_cpu_rate = get_cpu_rate_X(sample,mapping_index[f])
+        # X_mem_rate = get_men_rate_X(sample,mapping_index[f])
         
         add_list= [X]
-        add_list.extend([X_rate,X_cpu_rate,X_mem_rate])
+        # add_list.extend([X_rate,X_cpu_rate,X_mem_rate])
         add_list.extend([square(X)])
         X = hstack(add_list)
 
