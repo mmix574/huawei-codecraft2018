@@ -102,7 +102,8 @@ def matrix_transpose(A):
     assert(dim(A)==2)
     m = shape(A)[0]
     n = shape(A)[1]
-    R = zeros((n,m))
+    # R = zeros((n,m))
+    R = [[0 for _ in range(m)]]*n
     # result = []
     # for j in range(n):
     #     r = []

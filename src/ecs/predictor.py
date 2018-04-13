@@ -100,6 +100,25 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     Ys = sample[1:]
 
+    def flavor_clustering(sample,k=3,variance_threshold=None):
+        corrcoef_sample = corrcoef(sample)
+        clustering_paths = []
+        for i in range(shape(sample)[1]):
+            col = corrcoef_sample[i]
+            col_index_sorted = argsort(col)[::-1]
+            if variance_threshold!=None:
+                col_index_sorted = col_index_sorted[1:]
+                index = [i  for i in col_index_sorted if col[i]>variance_threshold]
+            else:
+                index = col_index_sorted[1:k+1]
+            clustering_paths.append(index)
+        return clustering_paths,corrcoef_sample
+
+    variance_threshold = 0.2
+
+    clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=variance_threshold)
+    print(coef_sample)
+
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
         assert(fill_na=='mean' or fill_na=='zero')
         col = fancy(sample,None,i)
@@ -178,12 +197,28 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
+    # n_feature
+    col_count = 5
+
     for f in flavors_unique:
-        X = get_feature_grid(sample,mapping_index[f],col_count=5,fill_na='mean',max_na_rate=1,with_test=True)
+        X = get_feature_grid(sample,mapping_index[f],col_count=col_count,fill_na='mean',max_na_rate=1,with_test=True)
         X_test = X[-1:]
         X = X[:-1]
         y = fancy(Ys,None,(mapping_index[f],mapping_index[f]+1))
 
+
+        print(clustering_paths[mapping_index[f]])
+
+        # 1.clustering data
+        for cluster_index in clustering_paths[mapping_index[f]]:
+            X_cluster = get_feature_grid(sample,mapping_index[f],col_count=col_count,fill_na='mean',max_na_rate=1,with_test=False)
+            y_cluster = fancy(Ys,None,(cluster_index,cluster_index+1))
+            w =  coef_sample[mapping_index[f]][cluster_index]
+            X.extend(X_cluster)
+            y.extend(y_cluster)
+
+        # print(len(clustering_paths[mapping_index[f]]))
+        # print(len(coef_sample[mapping_index[f][]]))
         X.extend(X_test)
 
         X_rate = get_rate_X(sample,mapping_index[f])
@@ -193,11 +228,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         add_list= [X]
         # add_list.extend([X_rate])
         # add_list.extend([X_cpu_rate,X_mem_rate])
-
         add_list.extend([apply(X,lambda x:math.log1p(x))])
         # add_list.extend([square(X)])
-
-
+        
         X = hstack(add_list)
 
         def multi_exponential_smoothing(A,list_of_alpha):
@@ -216,12 +249,12 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         Y_data_list = [multi_exponential_smoothing(y,a) for a in alphas]
         X_data_list.extend([X])
         Y_data_list.extend([y])
-        
         X = vstack(X_data_list)
         y = vstack(Y_data_list)
 
         y = flatten(y)
         X = normalize(X,y=y,norm='l1')
+
         assert(shape(X)[0]==shape(y)[0]+1)
         X_trainS.append(X[:-1])
         X_test_S.append(X[-1:])
@@ -247,7 +280,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
 
-    # clf = Ridge(alpha=1)
+    clf = Ridge(alpha=1)
 
     test = []
     train = []
@@ -257,13 +290,16 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         # y = Y_trainS[i]
         X = X_trainS[i]
         y = Y_trainS[i]
-        clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=False,verbose=True,random_state=41,cv='full',scoring='score')
+        # clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=False,verbose=True,random_state=41,cv='full',scoring='score')
         clf.fit(X,y)
         train.append(clf.predict(X))
         val.append(clf.predict(X_valS[i]))
         test.append(clf.predict(X_testS[i]))
 
+    # print("shape(train)",shape(train))
+
     train = matrix_transpose(train)
+    
     Y_trainS = matrix_transpose(Y_trainS)
     R.extend(test)
 
