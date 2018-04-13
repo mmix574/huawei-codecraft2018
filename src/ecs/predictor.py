@@ -214,16 +214,16 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     virtual_machine_sum = 0
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
-    clf = Ridge(alpha=2,fit_intercept=True)
+    clf = Ridge(alpha=0.1,fit_intercept=True)
 
     R = []
     X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
-    X_trainS = fancy(X_trainS_raw,None,(0,-3),None)
-    Y_trainS = fancy(Y_trainS_raw,None,(0,-3))
+    X_trainS = fancy(X_trainS_raw,None,(0,-2),None)
+    Y_trainS = fancy(Y_trainS_raw,None,(0,-2))
 
-    X_valS = fancy(X_trainS_raw,None,(-3,),None)
-    Y_valS = fancy(Y_trainS_raw,None,(-3,))
+    X_valS = fancy(X_trainS_raw,None,(-2,),None)
+    Y_valS = fancy(Y_trainS_raw,None,(-2,))
 
     test = []
     train = []
@@ -231,8 +231,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     for i in range(len(flavors_unique)):    
         # X = X_trainS[i]
         # y = Y_trainS[i]
-        X = X_trainS_raw[i]
-        y = Y_trainS_raw[i]
+        X = X_trainS[i]
+        y = Y_trainS[i]
         # clf = grid_search_cv(Ridge,{'alpha':[0.0001,0.02,0.01,0.03,0.04,0.05,0.06,0.07,0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=True,verbose=True,random_state=41,cv=20,scoring='loss')
         clf.fit(X,y)
         train.append(clf.predict(X))
@@ -240,13 +240,13 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         test.append(clf.predict(X_testS[i]))
 
     train = matrix_transpose(train)
-    Y_trainS_raw = matrix_transpose(Y_trainS_raw)
+    Y_trainS = matrix_transpose(Y_trainS)
     R.extend(test)
 
-    print("training_score-->",official_score(train,Y_trainS_raw))
-    # val = matrix_transpose(val)
-    # Y_valS = matrix_transpose(Y_valS)
-    # print("validation_score-->",official_score(val,Y_valS))
+    print("training_score-->",official_score(train,Y_trainS))
+    val = matrix_transpose(val)
+    Y_valS = matrix_transpose(Y_valS)
+    print("validation_score-->",official_score(val,Y_valS))
     
     result = flatten(R)
     result = [0 if r<0 else r for r in result]
@@ -295,8 +295,7 @@ def one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_
     #     y.extend(Y_trainS[i])
     #     x_val.extend(X_valS[i])
     #     y_val.extend(Y_valS[i])
-
-    exit()
+    
 
     train = matrix_transpose(train)
     Y_trainS = matrix_transpose(Y_trainS)
