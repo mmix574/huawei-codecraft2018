@@ -215,6 +215,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
     clf = Ridge(alpha=0.1,fit_intercept=True)
+    # clf = Ridge(alpha=0.1,fit_intercept=True)
 
     R = []
     X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
@@ -263,48 +264,8 @@ def one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_
     virtual_machine_sum = 0
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
-    clf = Ridge(alpha=0.001,fit_intercept=True)
-    
-    R = []
-    X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
-
-    X_trainS = fancy(X_trainS_raw,None,(0,-3),None)
-    Y_trainS = fancy(Y_trainS_raw,None,(0,-3))
-
-
-    X_valS = fancy(X_trainS_raw,None,(-3,),None)
-    Y_valS = fancy(Y_trainS_raw,None,(-3,))
-
-    X_trainS = reshape(X_trainS,(-1,shape(X_trainS)[2]))
-    Y_trainS = reshape(Y_trainS,(-1))
-    
-    X_valS = reshape(X_valS,(-1,shape(X_valS)[2])) 
-    Y_valS = reshape(X_valS,(-1))
-    
-    clf.fit(X_trainS,Y_trainS)
-    p =  clf.predict(X_trainS)
-
-    # print(shape(p))
-    print(official_score(p,Y_trainS))
-    # X = []
-    # y = []
-    # x_val = []
-    # y_val = []
-    # for i in range(len(flavors_unique)):
-    #     X.extend(X_trainS[i])
-    #     y.extend(Y_trainS[i])
-    #     x_val.extend(X_valS[i])
-    #     y_val.extend(Y_valS[i])
-    
-
-    train = matrix_transpose(train)
-    Y_trainS = matrix_transpose(Y_trainS)
-    R.extend(test)
-
-    print("training_score-->",official_score(train,Y_trainS))
-    val = matrix_transpose(val)
-    Y_valS = matrix_transpose(Y_valS)
-    print("validation_score-->",official_score(val,Y_valS))
+    pass
+    exit()
     
     result = flatten(R)
     result = [0 if r<0 else r for r in result]
@@ -323,8 +284,8 @@ def predict_vm(ecs_lines,input_lines):
     machine_config,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines,flavors_unique)
 
-    predict,virtual_machine_sum = merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
-    # predict,virtual_machine_sum = one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    # predict,virtual_machine_sum = merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    predict,virtual_machine_sum = one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))
