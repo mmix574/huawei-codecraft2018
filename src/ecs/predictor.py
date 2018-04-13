@@ -45,14 +45,12 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     # ----------------------------#
     sample = sample[::-1]
     # [       old data            ]
-    # [                           ]
-    # [                           ]
-    # [                           ]
+    # [         ...               ]
+    # [         ...               ]
     # [       new_data            ]
     # ----------------------------#
     assert(shape(sample)==(sample_length,len(flavors_unique)))
     return sample
-
 
 
     # add @ 2018-04-09 
@@ -84,6 +82,24 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     #     __y = multiply(__y,coef_sample[mapping_index[f]][p]) 
     #     y.extend(__y)
 
+    # def flavor_clustering(sample,k=3,variance_threshold=None):
+    #     corrcoef_sample = corrcoef(sample)
+    #     clustering_paths = []
+    #     for i in range(shape(sample)[1]):
+    #         col = corrcoef_sample[i]
+    #         col_index_sorted = argsort(col)[::-1]
+    #         if variance_threshold!=None:
+    #             col_index_sorted=col_index_sorted[1:]
+    #             index = [i  for i in col_index_sorted if col[i]>variance_threshold]
+    #         else:
+    #             index = col_index_sorted[1:k+1]
+    #         clustering_paths.append(index)
+    #     return clustering_paths,corrcoef_sample
+
+    # 0.2 x .4 x 0.5 ok 0.6
+    # clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=variance_threshold)
+
+
 # fix griding bug @2018-04-12
 def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,variance_threshold=0.5):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
@@ -110,22 +126,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     Ys = sample[1:]
 
-    # def flavor_clustering(sample,k=3,variance_threshold=None):
-    #     corrcoef_sample = corrcoef(sample)
-    #     clustering_paths = []
-    #     for i in range(shape(sample)[1]):
-    #         col = corrcoef_sample[i]
-    #         col_index_sorted = argsort(col)[::-1]
-    #         if variance_threshold!=None:
-    #             col_index_sorted=col_index_sorted[1:]
-    #             index = [i  for i in col_index_sorted if col[i]>variance_threshold]
-    #         else:
-    #             index = col_index_sorted[1:k+1]
-    #         clustering_paths.append(index)
-    #     return clustering_paths,corrcoef_sample
 
-    # 0.2 x .4 x 0.5 ok 0.6
-    # clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=variance_threshold)
 
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
         assert(fill_na=='mean' or fill_na=='zero')
@@ -186,7 +187,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
-        X = get_feature_grid(sample,mapping_index[f],col_count=3,fill_na='mean',max_na_rate=1,with_test=True)
+        X = get_feature_grid(sample,mapping_index[f],col_count=4,fill_na='mean',max_na_rate=1,with_test=True)
         X_test = X[-1:]
         X = X[:-1]
         y = fancy(Ys,None,mapping_index[f])
@@ -254,6 +255,8 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
+
+
 
 def one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
