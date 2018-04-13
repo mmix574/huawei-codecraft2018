@@ -148,12 +148,28 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     def get_rate_X(sample,i):
         sum_row = sum(sample,axis=1)
-        cpu_config,mem_config = get_machine_config(flavors_unique)
-        R = []
+        R = [ multiply(sample[i],1/float(sum_row[i])) if sum_row[i] !=0 else 1  for i in range(len(sample))]
+        return fancy(R,None,(i,i+1))
 
     def get_cpu_rate_X(sample,i):
-        pass
+        cpu_config,mem_config = get_machine_config(flavors_unique)
+        sample_copy = matrix_copy(sample)
+        for i in range(shape(sample_copy)[0]):
+            for j in range(shape(sample_copy)[1]):
+                sample_copy[i][j] *= cpu_config[j]
+        sum_row = sum(sample_copy,axis=1)
+        R = [ multiply(sample_copy[i],1/float(sum_row[i])) if sum_row[i] !=0 else 1  for i in range(len(sample_copy))]
+        return fancy(R,None,(i,i+1))
 
+    def get_men_rate_X(sample,i):
+        cpu_config,mem_config = get_machine_config(flavors_unique)
+        sample_copy = matrix_copy(sample)
+        for i in range(shape(sample_copy)[0]):
+            for j in range(shape(sample_copy)[1]):
+                sample_copy[i][j] *= mem_config[j]
+        sum_row = sum(sample_copy,axis=1)
+        R = [ multiply(sample_copy[i],1/float(sum_row[i])) if sum_row[i] !=0 else 1  for i in range(len(sample_copy))]
+        return fancy(R,None,(i,i+1))
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
@@ -164,7 +180,12 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         y = fancy(Ys,None,mapping_index[f])
         X.extend(X_test)
 
+        X_rate = get_rate_X(sample,mapping_index[f])
+        X_cpu_rate = get_cpu_rate_X(sample,mapping_index[f])
+        X_mem_rate = get_men_rate_X(sample,mapping_index[f])
+        
         add_list= [X]
+        add_list.extend([X_rate,X_cpu_rate,X_mem_rate])
         add_list.extend([square(X)])
         X = hstack(add_list)
 
