@@ -119,7 +119,7 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
         elif scoring=='loss':
             # return mean(losses)
             std = sqrt(mean(square(minus(losses,mean(losses)))))
-            return mean(losses)
+            # return mean(losses)
             return ((sorted(losses)[len(losses)/2] + mean(losses) + std)/2.0)
 
     else:

@@ -52,7 +52,6 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     assert(shape(sample)==(sample_length,len(flavors_unique)))
     return sample
 
-
     # add @ 2018-04-09 
     # X:
     #   f1 f2 f3 f4 f5 f6 ...
@@ -77,10 +76,10 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
-    sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=3,skip=0)
+    sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=1,skip=0)
 
     def outlier_handling(sample,method='mean',max_sigma=3):
-        assert(method=='mean' or method=='zero')
+        assert(method=='mean' or method=='zero' or method=='dynamic')
         sample = matrix_copy(sample)
         std_ = stdev(sample)
         mean_ = mean(sample,axis=1)
@@ -91,12 +90,14 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                         sample[i][j] = mean_[j]
                     elif method=='zero':
                         sample[i][j] = 0
+                    elif method=='dynamic':
+                        sample[i][j] = (sample[i][j] + mean_[j])/2.0
+                        
         return sample
 
-    # sample = outlier_handling(sample,method='zero',max_sigma=5)
     sample = outlier_handling(sample,method='mean',max_sigma=3)
     # sample = exponential_smoothing(sample,alpha=0.1)
-    
+
     Ys = sample[1:]
 
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
@@ -146,10 +147,10 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                 return R[:-1]
 
 
-    def get_rate_X(sample,i):
+    def get_rate_X(sample,j):
         sum_row = sum(sample,axis=1)
-        R = [ multiply(sample[i],1/float(sum_row[i])) if sum_row[i] !=0 else 1  for i in range(len(sample))]
-        return fancy(R,None,(i,i+1))
+        A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
+        return A
 
     def get_cpu_rate_X(sample,i):
         cpu_config,mem_config = get_machine_config(flavors_unique)
@@ -157,9 +158,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         for i in range(shape(sample_copy)[0]):
             for j in range(shape(sample_copy)[1]):
                 sample_copy[i][j] *= cpu_config[j]
-        sum_row = sum(sample_copy,axis=1)
-        R = [ multiply(sample_copy[i],1/float(sum_row[i])) if sum_row[i] !=0 else 1  for i in range(len(sample_copy))]
-        return fancy(R,None,(i,i+1))
+
+        sample = sample_copy
+        sum_row = sum(sample,axis=1)
+        A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
+        return A
 
     def get_men_rate_X(sample,i):
         cpu_config,mem_config = get_machine_config(flavors_unique)
@@ -167,32 +170,57 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         for i in range(shape(sample_copy)[0]):
             for j in range(shape(sample_copy)[1]):
                 sample_copy[i][j] *= mem_config[j]
-        sum_row = sum(sample_copy,axis=1)
-        R = [ multiply(sample_copy[i],1/float(sum_row[i])) if sum_row[i] !=0 else 1  for i in range(len(sample_copy))]
-        return fancy(R,None,(i,i+1))
+
+        sample = sample_copy
+        sum_row = sum(sample,axis=1)
+        A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
+        return A
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
     for f in flavors_unique:
-        X = get_feature_grid(sample,mapping_index[f],col_count=4,fill_na='mean',max_na_rate=1,with_test=True)
+        X = get_feature_grid(sample,mapping_index[f],col_count=5,fill_na='mean',max_na_rate=1,with_test=True)
         X_test = X[-1:]
         X = X[:-1]
-        y = fancy(Ys,None,mapping_index[f])
-
-        # X = vstack([X,X[:-1]])
-        # y = vstack([y,y[1:]])
+        y = fancy(Ys,None,(mapping_index[f],mapping_index[f]+1))
 
         X.extend(X_test)
 
-        # X_rate = get_rate_X(sample,mapping_index[f])
-        # X_cpu_rate = get_cpu_rate_X(sample,mapping_index[f])
-        # X_mem_rate = get_men_rate_X(sample,mapping_index[f])
-        
+        X_rate = get_rate_X(sample,mapping_index[f])
+        X_cpu_rate = get_cpu_rate_X(sample,mapping_index[f])
+        X_mem_rate = get_men_rate_X(sample,mapping_index[f])
+
         add_list= [X]
-        # add_list.extend([X_rate,X_cpu_rate,X_mem_rate])
-        add_list.extend([square(X)])
+        # add_list.extend([X_rate])
+        # add_list.extend([X_cpu_rate,X_mem_rate])
+
+        add_list.extend([apply(X,lambda x:math.log1p(x))])
+        # add_list.extend([square(X)])
+
+
         X = hstack(add_list)
 
+        def multi_exponential_smoothing(A,list_of_alpha):
+            R = A
+            for a in list_of_alpha:
+                R = exponential_smoothing(R,alpha=a)
+            return R
+        
+        depth = 3
+        # base = [0.1,0.2,0.3,0.4]
+        base = [0.6,0.7,0.8]
+        # base = [0.4,0.5,0.7,0.9,1,0.8,0.99,0.95]
+        alphas = [[ base[i]  for _ in range(depth)]for i in range(len(base))]
+
+        X_data_list = [multi_exponential_smoothing(X[:-1],a) for a in alphas]
+        Y_data_list = [multi_exponential_smoothing(y,a) for a in alphas]
+        X_data_list.extend([X])
+        Y_data_list.extend([y])
+        
+        X = vstack(X_data_list)
+        y = vstack(Y_data_list)
+
+        y = flatten(y)
         X = normalize(X,y=y,norm='l1')
         assert(shape(X)[0]==shape(y)[0]+1)
         X_trainS.append(X[:-1])
@@ -209,9 +237,6 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     virtual_machine_sum = 0
     mapping_index = get_flavors_unique_mapping(flavors_unique)
 
-    # clf = Ridge(alpha=0.1,fit_intercept=True)
-    clf = Ridge(alpha=1,fit_intercept=True)
-
     R = []
     X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
@@ -221,6 +246,9 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
+
+    # clf = Ridge(alpha=1)
+
     test = []
     train = []
     val = []
@@ -229,7 +257,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         # y = Y_trainS[i]
         X = X_trainS[i]
         y = Y_trainS[i]
-        # clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=False,verbose=True,random_state=41,cv='full',scoring='score')
+        clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=False,verbose=True,random_state=41,cv='full',scoring='score')
         clf.fit(X,y)
         train.append(clf.predict(X))
         val.append(clf.predict(X_valS[i]))
@@ -251,7 +279,6 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
-
 
 
 # build output lines

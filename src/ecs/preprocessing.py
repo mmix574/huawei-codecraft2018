@@ -81,7 +81,7 @@ def minmax_scaling(X,axis=1):
             R.append([(x-mean_)/(max_-min_) for x in col])    
     return matrix_transpose(R)
     
-def standard_scaling(X,axis=1):
+def standard_scaling(X,y=None,axis=1):
     if axis==0:
         return matrix_transpose(standard_scaling(matrix_transpose(X),axis=1))
     R = []
@@ -89,13 +89,17 @@ def standard_scaling(X,axis=1):
         col = fancy(X,None,j)     
         mean_ = mean(col)
         std = sqrt(mean(square(minus(col,mean_))))
+
+        if y!=None:
+            std_y = sqrt(mean(square(minus(y,mean(y)))))
+
         if std==0:
             R.append(col)
         else:
-            R.append([(x-mean_)/std for x in col])    
+            R.append([(x-mean_)*std_y/std for x in col])    
     return matrix_transpose(R)
 
-def maxabs_scaling(X,axis=1):
+def maxabs_scaling(X,y=None,axis=1):
     assert(axis==1)
     R = []
     for j in range(shape(X)[1]):
@@ -105,14 +109,15 @@ def maxabs_scaling(X,axis=1):
         if max_ == 0:
             R.append(col)
         else:
-            R.append([(x-mean_)/(max_) for x in col])
+            if not y:
+                R.append([(x-mean_)/(max_) for x in col])
+            else:
+                R.append([(x-mean_)*max(y)/(max_) for x in col])
                 
     return matrix_transpose(R)
 
-# 
-# def weight_decay_smoothing(X,axis=0,weight=0.5):
-#     assert(axis==0)
 
+# ----------smoothing method--------------
 def exponential_smoothing(A,axis=0,alpha=0.1):
     assert(axis==0)
     R = []
