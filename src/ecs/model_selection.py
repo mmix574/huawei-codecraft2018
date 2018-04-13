@@ -93,7 +93,6 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
 
         X_val,Y_val = X[s:e],y[s:e]
         estimator_instance.fit(X_train,Y_train)
-        
         p= estimator_instance.predict(X_val) 
         score = official_score(p,Y_val)
         loss = l2_loss(p,Y_val)
@@ -104,20 +103,23 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
     # print(scores)
     if return_mean:
         if scoring=='score':
+            
+            # print(scores)
+
             std = sqrt(mean(square(minus(scores,mean(scores)))))
-            # return (sorted(scores)[len(scores)/2] + mean(scores) - 0.5*std)/2.0
+            return (sorted(scores)[len(scores)/2] + mean(scores) - 0.5*std)/2.0
             # return (sorted(scores)[len(scores)/2] + mean(scores) - std)/2.0
             # return sorted(scores)[len(scores)/2] - std
             # return max(scores)
-            return mean(scores)
+            # return mean(scores[:len(scores)/2])
             # return mean(sorted(scores)[::-1][:len(scores)/2])
             # return (mean(scores) + max(scores))/2.0
-            # return mean(scores) - std
+            # return mean(scores)
             # return mean(scores) -0.5*std
         elif scoring=='loss':
             # return mean(losses)
             std = sqrt(mean(square(minus(losses,mean(losses)))))
-            # return mean(losses) + std
+            return mean(losses)
             return ((sorted(losses)[len(losses)/2] + mean(losses) + std)/2.0)
 
     else:

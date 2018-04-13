@@ -124,3 +124,5 @@ def exponential_smoothing(A,axis=0,alpha=0.1):
         R.append(C)
     return R
 
+def get_weight_daecay(alpha=0.1):
+    pass
