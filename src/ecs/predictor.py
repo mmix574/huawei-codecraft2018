@@ -72,7 +72,7 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     
 
 # fix griding bug @2018-04-12
-def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time,variance_threshold=0.5):
+def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     mapping_index = get_flavors_unique_mapping(flavors_unique)
     predict_days = (predict_end_time-predict_start_time).days
 
@@ -114,10 +114,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             clustering_paths.append(index)
         return clustering_paths,corrcoef_sample
 
-    variance_threshold = 0.2
+
+    # adjustable # 1
+    variance_threshold = 0.6 #76.234
 
     clustering_paths,coef_sample = flavor_clustering(sample,variance_threshold=variance_threshold)
-    print(coef_sample)
 
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
         assert(fill_na=='mean' or fill_na=='zero')
@@ -166,39 +167,40 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                 return R[:-1]
 
 
-    def get_rate_X(sample,j):
-        sum_row = sum(sample,axis=1)
-        A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
-        return A
+    # def get_rate_X(sample,j):
+    #     sum_row = sum(sample,axis=1)
+    #     A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
+    #     return A
 
-    def get_cpu_rate_X(sample,i):
-        cpu_config,mem_config = get_machine_config(flavors_unique)
-        sample_copy = matrix_copy(sample)
-        for i in range(shape(sample_copy)[0]):
-            for j in range(shape(sample_copy)[1]):
-                sample_copy[i][j] *= cpu_config[j]
+    # def get_cpu_rate_X(sample,i):
+    #     cpu_config,mem_config = get_machine_config(flavors_unique)
+    #     sample_copy = matrix_copy(sample)
+    #     for i in range(shape(sample_copy)[0]):
+    #         for j in range(shape(sample_copy)[1]):
+    #             sample_copy[i][j] *= cpu_config[j]
 
-        sample = sample_copy
-        sum_row = sum(sample,axis=1)
-        A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
-        return A
+    #     sample = sample_copy
+    #     sum_row = sum(sample,axis=1)
+    #     A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
+    #     return A
 
-    def get_men_rate_X(sample,i):
-        cpu_config,mem_config = get_machine_config(flavors_unique)
-        sample_copy = matrix_copy(sample)
-        for i in range(shape(sample_copy)[0]):
-            for j in range(shape(sample_copy)[1]):
-                sample_copy[i][j] *= mem_config[j]
+    # def get_men_rate_X(sample,i):
+    #     cpu_config,mem_config = get_machine_config(flavors_unique)
+    #     sample_copy = matrix_copy(sample)
+    #     for i in range(shape(sample_copy)[0]):
+    #         for j in range(shape(sample_copy)[1]):
+    #             sample_copy[i][j] *= mem_config[j]
 
-        sample = sample_copy
-        sum_row = sum(sample,axis=1)
-        A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
-        return A
+    #     sample = sample_copy
+    #     sum_row = sum(sample,axis=1)
+    #     A = [sample[i][j]/float(sum_row[i]) if sum_row[i]!=0 else 0 for i in range(shape(sample)[0])]
+    #     return A
 
     X_trainS,Y_trainS,X_test_S = [],[],[]
 
-    # n_feature
-    col_count = 5
+
+    # adjustable # 2 
+    col_count = 5 # n_feature
 
     for f in flavors_unique:
         X = get_feature_grid(sample,mapping_index[f],col_count=col_count,fill_na='mean',max_na_rate=1,with_test=True)
@@ -207,50 +209,73 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         y = fancy(Ys,None,(mapping_index[f],mapping_index[f]+1))
 
 
-        print(clustering_paths[mapping_index[f]])
+        clustering = True
+        # 1.data clustering 
+        if clustering:
+            print(clustering_paths[mapping_index[f]])
+            # improve weights of X and y
+            X.extend(X)
+            y.extend(y)
 
-        # 1.clustering data
-        for cluster_index in clustering_paths[mapping_index[f]]:
-            X_cluster = get_feature_grid(sample,mapping_index[f],col_count=col_count,fill_na='mean',max_na_rate=1,with_test=False)
-            y_cluster = fancy(Ys,None,(cluster_index,cluster_index+1))
-            w =  coef_sample[mapping_index[f]][cluster_index]
-            X.extend(X_cluster)
-            y.extend(y_cluster)
+            for cluster_index in clustering_paths[mapping_index[f]]:
+                X_cluster = get_feature_grid(sample,mapping_index[f],col_count=col_count,fill_na='zero',max_na_rate=1,with_test=False)
+                y_cluster = fancy(Ys,None,(cluster_index,cluster_index+1))
+                w =  coef_sample[mapping_index[f]][cluster_index]
 
-        # print(len(clustering_paths[mapping_index[f]]))
-        # print(len(coef_sample[mapping_index[f][]]))
+                X_cluster = apply(X_cluster,lambda x:x*w)
+                y_cluster = apply(y_cluster,lambda x:x*w)
+
+                X.extend(X_cluster)
+                y.extend(y_cluster)
+
+        # do not delete
         X.extend(X_test)
 
-        X_rate = get_rate_X(sample,mapping_index[f])
-        X_cpu_rate = get_cpu_rate_X(sample,mapping_index[f])
-        X_mem_rate = get_men_rate_X(sample,mapping_index[f])
+
+        # --------------------------------------------------------- #
+
 
         add_list= [X]
+
         # add_list.extend([X_rate])
         # add_list.extend([X_cpu_rate,X_mem_rate])
-        add_list.extend([apply(X,lambda x:math.log1p(x))])
         # add_list.extend([square(X)])
-        
+        add_list.extend([apply(X,lambda x:math.log1p(x))]) # important
         X = hstack(add_list)
+        
+
+        # --------------------------------------------------------- #
 
         def multi_exponential_smoothing(A,list_of_alpha):
             R = A
             for a in list_of_alpha:
                 R = exponential_smoothing(R,alpha=a)
             return R
-        
+
+        #adjustable #3 smoothing degree 
+        # 77.291 3
+        #	77.405 no.63
         depth = 3
-        # base = [0.1,0.2,0.3,0.4]
-        base = [0.6,0.7,0.8]
-        # base = [0.4,0.5,0.7,0.9,1,0.8,0.99,0.95]
+        #adjustable #4 smoothing weights
+        base = [0.6,0.7,0.8] # 3.0.6,0.7,0.8 77.163
+        
+
+        # depth = 3
+        # base = [0.7,0.8,0.9]
+
+
         alphas = [[ base[i]  for _ in range(depth)]for i in range(len(base))]
 
         X_data_list = [multi_exponential_smoothing(X[:-1],a) for a in alphas]
         Y_data_list = [multi_exponential_smoothing(y,a) for a in alphas]
+        
         X_data_list.extend([X])
         Y_data_list.extend([y])
         X = vstack(X_data_list)
         y = vstack(Y_data_list)
+
+        # --------------------------------------------------------- #
+
 
         y = flatten(y)
         X = normalize(X,y=y,norm='l1')
@@ -279,18 +304,18 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
-
-    clf = Ridge(alpha=1)
+    #adjustable #5 Ridge Regression alpha
+    # clf = Ridge(alpha=1)
 
     test = []
     train = []
     val = []
     for i in range(len(flavors_unique)):    
-        # X = X_trainS[i]
-        # y = Y_trainS[i]
         X = X_trainS[i]
         y = Y_trainS[i]
-        # clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=False,verbose=True,random_state=41,cv='full',scoring='score')
+
+        #adjustable #6 Use GridSearch or not
+        clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=True,verbose=False,random_state=41,cv=20,scoring='score')
         clf.fit(X,y)
         train.append(clf.predict(X))
         val.append(clf.predict(X_valS[i]))
@@ -337,8 +362,6 @@ def predict_vm(ecs_lines,input_lines):
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
     backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=1000)
     
-    # from backpack import maximize_score_backpack
-    # backpack_list,entity_machine_sum = maximize_score_backpack(machine_config,flavors,flavors_unique,predict,optimized,k=1000)
 
     result.append('{}'.format(entity_machine_sum))
 
