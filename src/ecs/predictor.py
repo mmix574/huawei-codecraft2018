@@ -123,10 +123,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
     sample = outlier_handling(sample,method='zero',max_sigma=5)
     sample = outlier_handling(sample,method='mean',max_sigma=3)
-
+    sample = exponential_smoothing(sample,alpha=0.1)
+    
     Ys = sample[1:]
-
-
 
     def get_feature_grid(sample,i,fill_na='mean',max_na_rate=1,col_count=None,with_test=True):
         assert(fill_na=='mean' or fill_na=='zero')
@@ -257,24 +256,111 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     return predict,virtual_machine_sum
 
 
-
+# ridge full
 def one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time):
     predict = {}.fromkeys(flavors_unique)
     for f in flavors_unique:
         predict[f] = 0
     virtual_machine_sum = 0
     mapping_index = get_flavors_unique_mapping(flavors_unique)
+    predict_days = (predict_end_time-predict_start_time).days
+        
+    def get_result(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=1,skip=0):
+        sample = resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=strike,skip=skip)
 
-    pass
-    exit()
+        def outlier_handling(sample,method='mean',max_sigma=3):
+            assert(method=='mean' or method=='zero')
+            sample = matrix_copy(sample)
+            std_ = stdev(sample)
+            mean_ = mean(sample,axis=1)
+            for i in range(shape(sample)[0]):
+                for j in range(shape(sample)[1]):
+                    if sample[i][j]-mean_[j] >max_sigma*std_[j]:
+                        if method=='mean':
+                            sample[i][j] = mean_[j]
+                        elif method=='zero':
+                            sample[i][j] = 0
+            return sample
+            
+        sample = outlier_handling(sample,method='mean')
+        # sample = exponential_smoothing(sample,alpha=01)
+
+        def handeling_date(sample,validation_size=0):
+            v_size = validation_size
+            X_val = sample[-(1+v_size):-1]
+            Y_val = sample[-v_size:]
+            X_test = sample[-1:]
+
+            if v_size != 0:
+                X_train = sample[:-1-v_size]
+                Y_train = sample[1:-v_size]
+            else:
+                X_train = sample[:-1]
+                Y_train = sample[1:]
+
+            # Data argumentation
+            # Preprocessing 
+            # X_train = hstack([X_train,square(X_train)])
+            # X_test = hstack([X_test,square(X_test)])
+            # if len(X_val):
+            #     X_val = hstack([X_val,square(X_val)])
+
+            # X_train = vstack([X_train[1:]])
+            # Y_train = vstack([Y_train[:-1])
+
+            # X_train = vstack([X_train,X_train[1:]])
+            # Y_train = vstack([Y_train,Y_train[:-1]])
+
+            return X_train,Y_train,X_val,Y_val,X_test
+
+        X_train,Y_train,X_val,Y_val,X_test = handeling_date(sample,validation_size=2)
+
+        # clf = Ridge(alpha=0.001)
+        # clf = grid_search_cv(Ridge,{'alpha':[0.001,0.00001,0.01,0.1,1,2,3,4,5,6,7,8]},X_train,Y_train,verbose=True,scoring='score')
+
+        from model_selection import early_stoping
+        clf = early_stoping(Ridge,{'alpha':arange(1e-4,30,100)[::-1]},X_train,Y_train,X_val,Y_val,verbose=True)
+        # clf = early_stoping(Ridge,{'alpha':arange(0,30,10)[::-1]},X_train,Y_train,X_val,Y_val,verbose=True)
+
+        clf.fit(X_train,Y_train)
+        p = clf.predict(X_train)
+        print("train official_score",official_score(p,Y_train))
+        p = clf.predict(X_val)
+        print("val official_score",official_score(p,Y_val))
+
+        # retrain
+        X_train,Y_train,X_val,Y_val,X_test = handeling_date(sample,validation_size=0)
+        # clf.fit(X_train,Y_train)
+
+        result = clf.predict(X_test)[0]
+
+        return result
     
-    result = flatten(R)
+    result_1 = get_result(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days,strike=1,skip=1)
+    result_1 = [r * (predict_days/float(predict_days)) for r in result_1]
+
+    result_2 = get_result(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days+1,strike=1,skip=0)
+    result_2 = [r * (predict_days/float(predict_days)) for r in result_2]
+
+    result_3 = get_result(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days-1,strike=1,skip=0)
+    result_3 = [r * (predict_days/float(predict_days)) for r in result_3]
+
+    result_4 = get_result(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days+2,strike=1,skip=0)
+    result_4 = [r * (predict_days/float(predict_days)) for r in result_4]
+
+    result_5 = get_result(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=predict_days-2,strike=1,skip=0)
+    result_5 = [r * (predict_days/float(predict_days)) for r in result_5]
+
+    result = vstack([[result_1],[result_2],[result_3]])
+    result = mean(result,axis=1)
+    
     result = [0 if r<0 else r for r in result]
     for f in flavors_unique:
         p = result[mapping_index[f]]
         predict[f] = int(round(p))
         virtual_machine_sum += int(round(p))
     return predict,virtual_machine_sum
+
 
 
 # build output lines
@@ -285,8 +371,8 @@ def predict_vm(ecs_lines,input_lines):
     machine_config,flavors_config,flavors_unique,optimized,predict_start_time,predict_end_time = parse_input_lines(input_lines)
     ecs_logs,training_start_time,training_end_time = parse_ecs_lines(ecs_lines,flavors_unique)
 
-    predict,virtual_machine_sum = merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
-    # predict,virtual_machine_sum = one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    # predict,virtual_machine_sum = merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
+    predict,virtual_machine_sum = one_hot(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
 
     result = []
     result.append('{}'.format(virtual_machine_sum))
@@ -296,7 +382,6 @@ def predict_vm(ecs_lines,input_lines):
     result.append('') # output '\n'
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
-    print('using k 3')
     backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=1000)
     
     # from backpack import maximize_score_backpack

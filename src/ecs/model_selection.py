@@ -107,14 +107,14 @@ def cross_val_score(estimator_instance,X,y,is_shuffle=False,cv='full',scoring='s
             # print(scores)
 
             std = sqrt(mean(square(minus(scores,mean(scores)))))
-            # return (sorted(scores)[len(scores)/2] + mean(scores) - 0.5*std)/2.0
+            return (sorted(scores)[len(scores)/2] + mean(scores) - 0.5*std)/2.0
             # return (sorted(scores)[len(scores)/2] + mean(scores) - std)/2.0
             # return sorted(scores)[len(scores)/2] - std
             # return max(scores)
             # return mean(scores[:len(scores)/2])
             # return mean(sorted(scores)[::-1][:len(scores)/2])
             # return (mean(scores) + max(scores))/2.0
-            return mean(scores)
+            # return mean(scores)
             # return mean(scores) -0.5*std
         elif scoring=='loss':
             # return mean(losses)
@@ -149,7 +149,7 @@ def grid_search_cv(estimator,paramaters,X,y,is_shuffle=False,cv='full',scoring='
         score = cross_val_score(clf,X,y,return_mean=True,is_shuffle=is_shuffle,cv=cv,scoring=scoring,random_state=random_state) 
         # clf.score(X,y)
         if verbose:
-            # print(p,score)
+            print(p,score)
             pass
         
         if scoring == "score":
@@ -170,3 +170,59 @@ def grid_search_cv(estimator,paramaters,X,y,is_shuffle=False,cv='full',scoring='
     else:
         return max_model
 
+
+def early_stoping(estimator,paramaters,X,y,X_val,Y_val,is_shuffle=False,scoring='score',verbose=False):
+    assert(scoring=='score' or scoring=='loss')
+    def paramater_gen(paramaters):
+        N = len(paramaters)
+        from itertools import product
+        value = list(product(*paramaters.values()))
+        for v in value:
+            yield dict(zip(paramaters.keys(),v))
+
+    max_model = None
+    max_parameter = None
+    max_score = None
+    min_loss = None
+    
+    last_score = None
+    last_loss = None
+
+    score = None
+    loss = None
+
+    for p in paramater_gen(paramaters):
+        clf = estimator(**p)
+        clf.fit(X,y)
+        
+        last_score = score
+        last_loss = loss
+
+        score = official_score(Y_val,clf.predict(X_val))
+        loss = l2_loss(Y_val,clf.predict(X_val))
+
+        if verbose:
+            # print(p,score,loss)
+            pass
+
+        # if last_loss!=None and last_loss<loss:
+        #     return max_model
+        # if last_score!=None and last_score>score:
+        #     return max_model
+
+
+        if scoring == "score":
+            if max_parameter==None or max_score<score:
+                max_parameter = p
+                max_score = score
+                max_model = clf
+        if scoring== "loss":
+            if max_parameter==None or min_loss>score:
+                max_parameter = p
+                min_loss = score
+                max_model = clf
+
+    if verbose:
+        print("max_parameter",max_parameter)
+
+    return max_model

@@ -25,7 +25,6 @@ class Ridge:
             X = hstack([bias,X])
         
         eye = identity_matrix(shape(X)[1])
-       
         X_T = matrix_transpose(X)
         
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(

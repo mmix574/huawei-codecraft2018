@@ -100,8 +100,9 @@ def matrix_inverse(A):
     
 def matrix_transpose(A):
     assert(dim(A)==2)
-    # m = shape(A)[0]
-    # n = shape(A)[1]
+    m = shape(A)[0]
+    n = shape(A)[1]
+    R = zeros((n,m))
     # result = []
     # for j in range(n):
     #     r = []
@@ -109,8 +110,14 @@ def matrix_transpose(A):
     #         print(j,len(A[i]))
     #         r.append(A[i][j])
     #     result.append(r)
-    result = [list(i) for i in zip(*A)]
-    return result
+    for i in range(m):
+        for j in range(n):
+            R[j][i] = A[i][j]
+    return R
+    # from copy import deepcopy
+    # B = deepcopy(A)
+    # result = [list(i) for i in zip(*B)]
+    # return result
 
 def matrix_copy(A):
     assert(dim(A)==2)
