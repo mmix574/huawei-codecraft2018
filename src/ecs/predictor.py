@@ -218,10 +218,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
             y.extend(y)
 
             for cluster_index in clustering_paths[mapping_index[f]]:
-                X_cluster = get_feature_grid(sample,mapping_index[f],col_count=col_count,fill_na='zero',max_na_rate=1,with_test=False)
+                X_cluster = get_feature_grid(sample,mapping_index[f],col_count=col_count,fill_na='mean',max_na_rate=1,with_test=False)
                 y_cluster = fancy(Ys,None,(cluster_index,cluster_index+1))
                 w =  coef_sample[mapping_index[f]][cluster_index]
 
+                # important
                 X_cluster = apply(X_cluster,lambda x:x*w)
                 y_cluster = apply(y_cluster,lambda x:x*w)
 
@@ -234,15 +235,6 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
         # --------------------------------------------------------- #
 
-
-        add_list= [X]
-
-        # add_list.extend([X_rate])
-        # add_list.extend([X_cpu_rate,X_mem_rate])
-        # add_list.extend([square(X)])
-        add_list.extend([apply(X,lambda x:math.log1p(x))]) # important
-        X = hstack(add_list)
-        
 
         # --------------------------------------------------------- #
 
@@ -257,8 +249,9 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         #	77.405 no.63
         depth = 3
         #adjustable #4 smoothing weights
-        base = [0.6,0.7,0.8] # 3.0.6,0.7,0.8 77.163
-        
+        # base = [0.3,0.5,0.7,0.8] # 3.0.6,0.7,0.8 77.163
+        # base = [0.1,0.3,0.5] # 3.0.6,0.7,0.8 77.163
+        base = [0.6,0.7,0.8]
 
         # depth = 3
         # base = [0.7,0.8,0.9]
@@ -274,8 +267,15 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         X = vstack(X_data_list)
         y = vstack(Y_data_list)
 
-        # --------------------------------------------------------- #
+        # # --------------------------------------------------------- #
 
+        add_list= [X]
+        # add_list.extend([X_diff(X)])
+        add_list.extend([apply(X,lambda x:math.log1p(x))]) # important
+        X = hstack(add_list)
+
+
+        # -----------------------------------------------------------#
 
         y = flatten(y)
         X = normalize(X,y=y,norm='l1')
@@ -305,7 +305,7 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
     #adjustable #5 Ridge Regression alpha
-    # clf = Ridge(alpha=1)
+    clf = Ridge(alpha=1)
 
     test = []
     train = []
@@ -313,9 +313,6 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
     for i in range(len(flavors_unique)):    
         X = X_trainS[i]
         y = Y_trainS[i]
-
-        #adjustable #6 Use GridSearch or not
-        clf = grid_search_cv(Ridge,{'alpha':[0.1,0.2,0.3,0.4,0.5,0.8,1,1.5,2,3,4]},X,y,is_shuffle=True,verbose=False,random_state=41,cv=20,scoring='score')
         clf.fit(X,y)
         train.append(clf.predict(X))
         val.append(clf.predict(X_valS[i]))
@@ -360,7 +357,7 @@ def predict_vm(ecs_lines,input_lines):
     result.append('') # output '\n'
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
-    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=1000)
+    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=10000)
     
 
     result.append('{}'.format(entity_machine_sum))
