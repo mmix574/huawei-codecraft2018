@@ -7,7 +7,7 @@ from linalg.common import fancy,sum
 
 
 class Ridge:
-    def __init__(self,alpha=1,fit_intercept=True):
+    def __init__(self,alpha=1,fit_intercept=True,penalty_loss=None):
         self.alpha = alpha
         self.fit_intercept = fit_intercept
         self.W = None
@@ -15,7 +15,7 @@ class Ridge:
         # self.bias_penalty = bias_penalty
         
         self.importance_ = None
-
+        self.penalty_loss = penalty_loss
     def fit(self,X,y):
         X,y = self._check(X,y)
         
@@ -25,6 +25,9 @@ class Ridge:
             X = hstack([bias,X])
         
         eye = identity_matrix(shape(X)[1])
+        from linalg.matrix import diag
+        if self.penalty_loss:
+            eye = diag(self.penalty_loss)
         X_T = matrix_transpose(X)
         
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(

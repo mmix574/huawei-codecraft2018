@@ -169,7 +169,7 @@ def grid_search_cv(estimator,paramaters,X,y,is_shuffle=False,cv='full',scoring='
         return max_model
 
 
-def early_stoping(estimator,paramaters,X,y,X_val,Y_val,is_shuffle=False,scoring='score',verbose=False):
+def early_stoping(estimator,paramaters,X,y,X_val,Y_val,scoring='score',verbose=False):
     assert(scoring=='score' or scoring=='loss')
     def paramater_gen(paramaters):
         N = len(paramaters)
@@ -203,10 +203,10 @@ def early_stoping(estimator,paramaters,X,y,X_val,Y_val,is_shuffle=False,scoring=
             # print(p,score,loss)
             pass
 
-        # if last_loss!=None and last_loss<loss:
-        #     return max_model
-        # if last_score!=None and last_score>score:
-        #     return max_model
+        if last_loss!=None and last_loss<loss:
+            return max_model
+        if last_score!=None and last_score>score:
+            return max_model
 
 
         if scoring == "score":
@@ -224,3 +224,46 @@ def early_stoping(estimator,paramaters,X,y,X_val,Y_val,is_shuffle=False,scoring=
         print("max_parameter",max_parameter)
 
     return max_model
+
+
+
+
+# support for score only
+def grid_search_cv_early_stoping(estimator,paramaters,X,y,X_val,y_val,is_shuffle=False,cv='full',scoring='score',random_state=None,verbose=False,return_parameter=False):
+    assert(scoring=='score')
+    def paramater_gen(paramaters):
+        N = len(paramaters)
+        from itertools import product
+        value = list(product(*paramaters.values()))
+        for v in value:
+            yield dict(zip(paramaters.keys(),v))
+
+    max_model = None
+    max_parameter = None
+    max_score = None
+    min_loss = None
+    for p in paramater_gen(paramaters):
+        clf = estimator(**p)
+        clf.fit(X,y)
+        score = cross_val_score(clf,X,y,return_mean=True,is_shuffle=is_shuffle,cv=cv,scoring=scoring,random_state=random_state) 
+        score_val = official_score(y_val,clf.predict(X_val))
+
+        score = ((0/3.0)*score + (3/3.0)*score_val)
+
+        # clf.score(X,y)
+        if verbose:
+            print(p,score)
+            pass
+        
+        if max_parameter==None or max_score<score:
+            max_parameter = p
+            max_score = score
+            max_model = clf
+
+    if verbose:
+        print("max_parameter",max_parameter)
+
+    if return_parameter:
+        return max_model,max_parameter
+    else:
+        return max_model

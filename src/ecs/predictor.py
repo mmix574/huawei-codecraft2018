@@ -24,6 +24,9 @@ from utils import (get_flavors_unique_mapping, get_machine_config,
                    parse_ecs_lines, parse_input_lines)
 
 from preprocessing import exponential_smoothing
+from model_selection import early_stoping
+
+# from linalg.vector import arange
 
 # add @2018-04-10
 # refactoring, do one thing.
@@ -96,7 +99,7 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         return sample
 
     sample = outlier_handling(sample,method='mean',max_sigma=3)
-    # sample = exponential_smoothing(sample,alpha=0.1)
+    # sample = exponential_smoothing(sample,alpha=0.2)
 
     Ys = sample[1:]
 
@@ -234,8 +237,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
 
 
         # --------------------------------------------------------- #
-
-
+        add_list= [X]
+        # add_list = []
+        # add_list.extend([sqrt(X)])
+        add_list.extend([apply(X,lambda x:math.log1p(x))]) # important
+        X = hstack(add_list)
         # --------------------------------------------------------- #
 
         def multi_exponential_smoothing(A,list_of_alpha):
@@ -244,16 +250,16 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
                 R = exponential_smoothing(R,alpha=a)
             return R
 
-        #adjustable #3 smoothing degree 
-        # 77.291 3
-        #	77.405 no.63
-        depth = 3
-        #adjustable #4 smoothing weights
-        # base = [0.3,0.5,0.7,0.8] # 3.0.6,0.7,0.8 77.163
-        # base = [0.1,0.3,0.5] # 3.0.6,0.7,0.8 77.163
+        # #adjustable #3 smoothing degree 
+        # # 77.291 3
+        # #	77.405 no.63
+        # depth = 3
+        # #adjustable #4 smoothing weights
+        # # base = [0.3,0.5,0.7,0.8] # 3.0.6,0.7,0.8 77.163
+        # # base = [0.1,0.3,0.5] # 3.0.6,0.7,0.8 77.163
         base = [0.6,0.7,0.8]
 
-        # depth = 3
+        depth = 3
         # base = [0.7,0.8,0.9]
 
 
@@ -267,14 +273,11 @@ def features_building(ecs_logs,flavors_config,flavors_unique,training_start_time
         X = vstack(X_data_list)
         y = vstack(Y_data_list)
 
-        # # --------------------------------------------------------- #
-
-        add_list= [X]
-        # add_list.extend([X_diff(X)])
-        add_list.extend([apply(X,lambda x:math.log1p(x))]) # important
-        X = hstack(add_list)
+        # # # --------------------------------------------------------- #
 
 
+
+        
         # -----------------------------------------------------------#
 
         y = flatten(y)
@@ -297,23 +300,32 @@ def merge(ecs_logs,flavors_config,flavors_unique,training_start_time,training_en
 
     R = []
     X_trainS_raw,Y_trainS_raw,X_testS = features_building(ecs_logs,flavors_config,flavors_unique,training_start_time,training_end_time,predict_start_time,predict_end_time)
-
+    # penalty = [1,1,1,1,0.5,0.5]
     X_trainS = fancy(X_trainS_raw,None,(0,-1),None)
+    # X_trainS = X_trainS_raw
+    
     Y_trainS = fancy(Y_trainS_raw,None,(0,-1))
+    # Y_trainS = Y_trainS_raw
 
     X_valS = fancy(X_trainS_raw,None,(-1,),None)
     Y_valS = fancy(Y_trainS_raw,None,(-1,))
 
     #adjustable #5 Ridge Regression alpha
     clf = Ridge(alpha=1)
-
+    from model_selection import grid_search_cv_early_stoping
+    
     test = []
     train = []
     val = []
     for i in range(len(flavors_unique)):    
         X = X_trainS[i]
         y = Y_trainS[i]
-        clf.fit(X,y)
+        # clf = grid_search_cv(Ridge,{"alpha":[0.001,0.01,0.1,0.4,0.7,1,1.5,2]},X,y,cv=20,random_state=42,is_shuffle=True,verbose=True)
+        clf = early_stoping(Ridge,{"alpha":sorted([0.01,0.02,0.1,0.4,0.7,1,1.5,2])[::-1]},X,y,X_valS[i],Y_valS[i],verbose=False)
+        # clf = grid_search_cv_early_stoping(Ridge,{"alpha":sorted([0.01,0.02,0.1,0.4,0.7,1,1.5,2])[::-1]},X,y,X_valS[i],Y_valS[i],cv=10,random_state=42,is_shuffle=True,verbose=True)
+        # clf = Ridge(alpha=(clf_1.alpha + clf_2.alpha))
+        # clf = Ridge(alpha=1)
+        # clf.fit(X,y)
         train.append(clf.predict(X))
         val.append(clf.predict(X_valS[i]))
         test.append(clf.predict(X_testS[i]))
@@ -357,7 +369,7 @@ def predict_vm(ecs_lines,input_lines):
     result.append('') # output '\n'
 
     # backpack_list,entity_machine_sum = backpack(machine_config,flavors,flavors_unique,predict)
-    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=10000)
+    backpack_list,entity_machine_sum = backpack_random_k_times(machine_config,flavors_config,flavors_unique,predict,optimized,k=1000)
     
 
     result.append('{}'.format(entity_machine_sum))
