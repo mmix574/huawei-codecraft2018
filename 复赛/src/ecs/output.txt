@@ -1,11 +1,20 @@
-140
-flavor1 32
-flavor2 32
-flavor4 11
-flavor5 21
-flavor8 44
+494
+flavor1 78
+flavor2 135
+flavor4 15
+flavor5 91
+flavor8 175
 
-High-Performance 3
-High-Performance-1 flavor1 32 flavor2 32 flavor4 11 flavor5 13
-High-Performance-2 flavor8 20 flavor5 8
-High-Performance-3 flavor8 24
+High-Performance 12
+High-Performance-1 flavor8 14 flavor1 4 flavor2 16 flavor4 2 flavor5 9
+High-Performance-2 flavor8 16 flavor1 8 flavor2 13 flavor4 2 flavor5 6
+High-Performance-3 flavor8 17 flavor1 6 flavor2 7 flavor4 2 flavor5 8
+High-Performance-4 flavor8 13 flavor1 8 flavor2 17 flavor5 11
+High-Performance-5 flavor8 17 flavor1 6 flavor2 8 flavor5 8
+High-Performance-6 flavor8 16 flavor1 7 flavor2 11 flavor4 3 flavor5 7
+High-Performance-7 flavor8 14 flavor1 12 flavor2 13 flavor4 1 flavor5 10
+High-Performance-8 flavor8 16 flavor1 9 flavor2 8 flavor4 1 flavor5 8
+High-Performance-9 flavor8 16 flavor1 8 flavor2 11 flavor4 1 flavor5 8
+High-Performance-10 flavor8 16 flavor1 5 flavor2 12 flavor4 1 flavor5 7
+High-Performance-11 flavor8 15 flavor1 4 flavor2 15 flavor4 2 flavor5 8
+High-Performance-12 flavor8 5 flavor1 1 flavor2 4 flavor5 1

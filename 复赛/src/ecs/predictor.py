@@ -3,7 +3,7 @@ import random
 import re
 from datetime import datetime, timedelta
 
-from linalg.common import dim, fancy, mean, shape, sum, zeros
+from linalg.common import abs, dim, fancy, mean, minus, shape, sum, zeros
 from linalg.matrix import stdev
 
 # from linalg.common import (apply, dim, dot, fancy, flatten, mean, minus,
@@ -164,7 +164,6 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         predict_days += 1
     
     sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
-    
     # problem #1 here
     def outlier_handling(sample,method='mean',max_sigma=3):
         assert(method=='mean')
@@ -176,9 +175,32 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                     if method=='mean':
                         sample[i][j] = mean_[j]
         return sample
-    # sample = outlier_handling(sample,method='mean',max_sigma=5)
 
-    prediction = mean(sample,axis=0)
+    # sample = outlier_handling(sample,method='mean',max_sigma=3)
+    # from preprocessing import exponential_smoothing
+    # sample = exponential_smoothing(sample)
+    # sample = sample[-7:]
+
+    from learn.ridge import Ridge
+    from linalg.common import apply,reshape,sqrt
+    from linalg.vector import arange
+    from linalg.matrix import hstack
+    prediction = []
+    skip_days = (predict_start-training_end).days
+    for i in range(shape(sample)[1]):
+        clf = Ridge(alpha=1)
+        X = reshape(list(range(len(sample))),(-1,1))
+        y = fancy(sample,None,(i,i+1))
+        X_test = [[len(sample)+1+skip_days]]
+        # X = hstack([X,apply(X,lambda x:x**2),apply(X,lambda x:math.pow(x,3))])
+        # X_test = hstack([X_test,apply(X_test,lambda x:x**2),apply(X_test,lambda x:math.pow(x,3))])
+        
+        X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
+        X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
+        clf.fit(X,y)
+        p = clf.predict(X_test)
+        prediction.extend(p[0])
+    
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
     return prediction
 
@@ -192,10 +214,9 @@ def argmin(A):
             min_index = i
     return min_index
 
-from linalg.common import minus,abs
 
 
-def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=False):
     # parameters:
     # machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction
     # -->
@@ -226,6 +247,10 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 [flavors_unique[i],{'CPU':f_config['CPU'],'MEM':f_config['MEM']}] 
             for _ in range(prediction[i])]
             )
+
+    if is_random:
+        from random import shuffle
+        shuffle(vms)
     # vms:
     # [(1, {'MEM': 1, 'CPU': 1}), (2, {'MEM': 1, 'CPU': 1}), (4, {'MEM': 1,'CPU': 1}), (5, {'MEM': 1, 'CPU': 1}), (8, {'MEM': 1, 'CPU': 1}), (1,{'MEM': 2, 'CPU': 1}), (2, {'MEM': 2, 'CPU': 1}), (4, {'MEM': 2, 'CPU': 1}), (5, {'MEM': 2, 'CPU': 1}), (8, {'MEM': 2, 'CPU': 1}), (1, {'MEM': 2, 'CPU': 2}), (2, {'MEM': 2, 'CPU': 2}), (4, {'MEM': 2, 'CPU': 2}), (5, {'MEM': 2, 'CPU': 2}), (8, {'MEM': 2, 'CPU': 2}), (1, {'MEM': 4, 'CPU': 2}), (2, {'MEM': 4, 'CPU': 2}), (4, {'MEM': 4, 'CPU': 2}), (5, {'MEM': 4, 'CPU': 2}), (8, {'MEM': 4, 'CPU': 2}), (1, {'MEM': 8, 'CPU': 4}), (2, {'MEM': 8, 'CPU': 4}), (4, {'MEM': 8, 'CPU': 4}), (5, {'MEM': 8, 'CPU': 4}), (8, {'MEM': 8, 'CPU': 4})]
 
@@ -289,8 +314,17 @@ def predict_vm(ecs_lines,input_lines):
 
     # flavors_config:
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
-    backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    min_count = None
+    best_result = None
+    for i in range(1000):
+        backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
+        if not min_count or min_count>backpack_count:
+            min_count = backpack_count
+            best_result = backpack_result
 
+    backpack_count = min_count
+    backpack_result = best_result
 
     result = []
     result.append('{}'.format(sum(prediction)))
