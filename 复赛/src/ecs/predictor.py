@@ -163,7 +163,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     if hours >= 12:
         predict_days += 1
     
-    sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=1,skip=0)
+    sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
     
     # problem #1 here
     def outlier_handling(sample,method='mean',max_sigma=3):
@@ -176,7 +176,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                     if method=='mean':
                         sample[i][j] = mean_[j]
         return sample
-    sample = outlier_handling(sample,method='mean',max_sigma=3)
+    # sample = outlier_handling(sample,method='mean',max_sigma=5)
 
     prediction = mean(sample,axis=0)
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
