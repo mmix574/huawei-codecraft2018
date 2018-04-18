@@ -193,23 +193,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     return prediction
 
 
-# add @2018-04-16
-def argmin(A):
-    assert(dim(A)==1)
-    min_index = 0
-    for i in range(len(A)):
-        if A[i] < A[min_index]:
-            min_index = i
-    return min_index
-
-# add @2018-04-18
-def argmax(A):
-    assert(dim(A)==1)
-    min_index = 0
-    for i in range(len(A)):
-        if A[i] > A[min_index]:
-            min_index = i
-    return min_index
+from linalg.vector import argmax,argmin
 
 
 def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=False):
@@ -277,11 +261,17 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
         # ------------------refiting ------------------------------  
         refit = False
         insert_order = list(range(machine_number))
+        # shuffle(insert_order)
         for i in insert_order:
-            for j in range(len(backpack_result[i])):
+            for j in range(len(backpack_result[i]))[::-1]:
                 cpu_cap,mem_cap = backpack_capcity[i][j]
                 if cpu_cap>=vm_config['CPU'] and mem_cap>=vm_config['MEM']:
                     backpack_result[i][j][vm_flavor]+=1
+
+                    # used for estimate the cpu/mem rate
+                    cpu_predict -= vm_config['CPU']
+                    mem_prefict -= vm_config['MEM']
+
                     # success
                     backpack_capcity[i][j] = cpu_cap-vm_config['CPU'],mem_cap-vm_config['MEM']
                     refit = True
@@ -308,15 +298,28 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 placing[type_i] = None
             else:
                 placing[type_i][vm_flavor]+=1
+                
+                # used for estimate the cpu/mem rate
+                cpu_predict -= vm_config['CPU']
+                mem_prefict -= vm_config['MEM']
+
                 vms.pop(0)
                 
                 # add @2018-04-18
                 # select next type of entity machine
-                if random.random()<0.0:
-                    type_i = random.choice(range(machine_number))
-                else:
-                    type_i = type_i_fix
-                
+                # type_i = random.choice(range(machine_number))
+                if mem_prefict==0:
+                    break
+
+                # 1.Greedy Algorithm
+                type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
+
+                # 2.Simulated annealing Algorithm
+                # if random.random()<0.01:
+                #     type_i = random.choice(range(machine_number))
+                # else:
+                #     type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
+                # good score on local testing set. 
 
     for i in range(len(placing)):
         if placing[i]!=None:
@@ -342,7 +345,6 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
     return backpack_count,backpack_result
 
 
-
 # build output lines
 def predict_vm(ecs_lines,input_lines):
     if input_lines is None or ecs_lines is None:
@@ -362,6 +364,10 @@ def predict_vm(ecs_lines,input_lines):
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     
+    # solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000)
+    # print(solutions)
+    # exit()
+
     def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
         def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
             cpu = 0
@@ -408,14 +414,15 @@ def predict_vm(ecs_lines,input_lines):
 
         # find the best score solution 
         score  = (cpu_rate+mem_rate)/2.0
-        # print(score)
         
+        # print(i,score)
+
         if not max_score or max_score<score:
             max_score = score
             best_result = backpack_result
             min_count = backpack_count
     
-    print(max_score)
+    print("max_score-->",max_score)
 
     backpack_count = min_count
     backpack_result = best_result

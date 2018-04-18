@@ -20,3 +20,21 @@ def arange(a,b,count):
 def argsort(X):
     assert(dim(X)==1)
     return sorted(range(len(X)), key=X.__getitem__)
+
+# add @2018-04-16
+def argmin(A):
+    assert(dim(A)==1)
+    min_index = 0
+    for i in range(len(A)):
+        if A[i] < A[min_index]:
+            min_index = i
+    return min_index
+
+# add @2018-04-18
+def argmax(A):
+    assert(dim(A)==1)
+    min_index = 0
+    for i in range(len(A)):
+        if A[i] > A[min_index]:
+            min_index = i
+    return min_index
