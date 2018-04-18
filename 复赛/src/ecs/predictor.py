@@ -202,7 +202,7 @@ def argmin(A):
             min_index = i
     return min_index
 
-
+# add @2018-04-18
 def argmax(A):
     assert(dim(A)==1)
     min_index = 0
@@ -223,7 +223,6 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
     # [1, 2, 4, 5, 8], 
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2, 'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}], 
     # [32, 32, 11, 21,44])
-    
 
     machine_rate = [c['CPU']/float(c['MEM']) for c in machine_config]
 
@@ -255,6 +254,10 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
     # [....]                     <== type2 machine
     # [....]                     <== type3 machine
     backpack_result = [[] for _ in range(machine_number)]
+
+    # same size of backpack_result,for reduce repected calclation
+    backpack_capcity = [[] for _ in range(machine_number)]
+
 
     placing = [None for _ in range(machine_number)]
 
