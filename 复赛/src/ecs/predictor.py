@@ -7,7 +7,8 @@ from learn.ridge import Ridge
 from linalg.common import (abs, apply, dim, fancy, mean, minus, reshape, shape,
                            sqrt, sum, zeros)
 from linalg.matrix import hstack, stdev
-from linalg.vector import arange
+from linalg.vector import arange, argmax, argmin
+
 
 # checked
 def parse_input_lines(input_lines):
@@ -154,6 +155,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     if hours >= 12:
         predict_days += 1
     
+
     sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
     # problem #1 here
     def outlier_handling(sample,method='mean',max_sigma=3):
@@ -191,9 +193,6 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
     return prediction
-
-
-from linalg.vector import argmax,argmin
 
 
 def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=False):
@@ -263,7 +262,7 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
         insert_order = list(range(machine_number))
         # shuffle(insert_order)
         for i in insert_order:
-            for j in range(len(backpack_result[i]))[::-1]:
+            for j in range(len(backpack_result[i])):
                 cpu_cap,mem_cap = backpack_capcity[i][j]
                 if cpu_cap>=vm_config['CPU'] and mem_cap>=vm_config['MEM']:
                     backpack_result[i][j][vm_flavor]+=1
@@ -404,7 +403,7 @@ def predict_vm(ecs_lines,input_lines):
         mem_rate = mem_used_total_total/float(mem_total_total)
         return cpu_rate,mem_rate
 
-
+    # maximize score
     max_score = None
     best_result = None
     min_count = None
