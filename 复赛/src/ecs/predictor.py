@@ -275,22 +275,22 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
         vm_flavor = vms[0][0]
         vm_config = vms[0][1]
         # ------------------refiting ------------------------------  
-        # refit = False
-        # insert_order = list(range(machine_number))
-        # for i in insert_order:
-        #     for j in range(len(backpack_result[i])):
-        #         cpu_total,mem_total = machine_config[i]['CPU'],machine_config[i]['MEM']
-        #         cpu_used,mem_used = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,backpack_result[i][j])
-        #         if cpu_total-cpu_used>=vm_config['CPU'] and mem_total-mem_used>=vm_config['MEM']:
-        #             backpack_result[i][j][vm_flavor]+=1
-        #             # success
-        #             refit = True
-        #             break
-        #     if refit:
-        #         break
-        # if refit:
-        #     vms.pop(0)
-        #     continue
+        refit = False
+        insert_order = list(range(machine_number))
+        for i in insert_order:
+            for j in range(len(backpack_result[i])):
+                cpu_cap,mem_cap = backpack_capcity[i][j]
+                if cpu_cap>=vm_config['CPU'] and mem_cap>=vm_config['MEM']:
+                    backpack_result[i][j][vm_flavor]+=1
+                    # success
+                    backpack_capcity[i][j] = cpu_cap-vm_config['CPU'],mem_cap-vm_config['MEM']
+                    refit = True
+                    break
+            if refit:
+                break
+        if refit:
+            vms.pop(0)
+            continue
         # -------------------normal fitting------------------------
         if placing[type_i] == None:
             placing[type_i] = {}.fromkeys(flavors_unique)
@@ -301,7 +301,10 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
             cpu_total,mem_total = machine_config[type_i]['CPU'],machine_config[type_i]['MEM']
             cpu_used,mem_used = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,placing[type_i])
             if cpu_total-cpu_used<vm_config['CPU'] or mem_total-mem_used<vm_config['MEM']:
+                # add to backpack_list and create a new entity_machine
                 backpack_result[type_i].append(placing[type_i])
+                backpack_capcity[type_i].append((cpu_total-cpu_used,mem_total-mem_used))
+
                 placing[type_i] = None
             else:
                 placing[type_i][vm_flavor]+=1
@@ -413,6 +416,7 @@ def predict_vm(ecs_lines,input_lines):
             min_count = backpack_count
     
     print(max_score)
+
     backpack_count = min_count
     backpack_result = best_result
 
