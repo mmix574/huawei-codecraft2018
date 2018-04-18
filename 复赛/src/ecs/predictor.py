@@ -279,7 +279,7 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 
                 # add @2018-04-18
                 # select next type of entity machine
-                type_i = random.choice(range(machine_number))
+                # type_i = random.choice(range(machine_number))
 
     for i in range(len(placing)):
         if placing[i]!=None:
@@ -314,12 +314,6 @@ def predict_vm(ecs_lines,input_lines):
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     
-    print(machine_config)
-
-
-    min_count = None
-    best_result = None
-
     def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
         def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
             cpu = 0
@@ -337,35 +331,41 @@ def predict_vm(ecs_lines,input_lines):
             cpu_total = len(backpack_result[i])*machine_config[i]['CPU']
             mem_total = len(backpack_result[i])*machine_config[i]['MEM']
             cpu_total_total += cpu_total
-            mem_total_total += cpu_total
+            mem_total_total += mem_total
 
             # state:[(cpu,mem),(cpu,mem)...]
             # [(81, 155), (82, 159), (84, 157), (81, 153)]
-            print(backpack_result[i])
             state = [_get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em) for em in backpack_result[i]]
-            print(state)
             cpu_used_total = sum([s[0] for s in state])
             mem_used_total = sum([s[1] for s in state])
 
             cpu_used_total_total += cpu_used_total
             mem_used_total_total += mem_used_total
 
-
-            print(cpu_used_total,cpu_total_total)
+            # print(cpu_used_total,cpu_total_total)
             # print(mem_used_total,mem_total_total)
 
         cpu_rate = cpu_used_total_total/float(cpu_total_total)
         mem_rate = mem_used_total_total/float(mem_total_total)
         return cpu_rate,mem_rate
 
+
+    max_score = None
+    best_result = None
+    min_count = None
     for i in range(1000):
         backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
         cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
-        # print(cpu_rate,mem_rate)
-        if not min_count or min_count>backpack_count:
-            min_count = backpack_count
+
+        # find the best score solution 
+        score  = (cpu_rate+mem_rate)/2.0
+        print(score)
+        
+        if not max_score or max_score<score:
+            max_score = score
             best_result = backpack_result
-        exit()
+            min_count = backpack_count
+
     backpack_count = min_count
     backpack_result = best_result
 
