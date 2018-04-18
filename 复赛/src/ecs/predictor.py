@@ -183,7 +183,6 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         X_test = [[len(sample)+skip_days]]
         # X = hstack([X,apply(X,lambda x:x**2),apply(X,lambda x:math.pow(x,3))])
         # X_test = hstack([X_test,apply(X_test,lambda x:x**2),apply(X_test,lambda x:math.pow(x,3))])
-        
         X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
         clf.fit(X,y)
@@ -203,6 +202,14 @@ def argmin(A):
             min_index = i
     return min_index
 
+
+def argmax(A):
+    assert(dim(A)==1)
+    min_index = 0
+    for i in range(len(A)):
+        if A[i] > A[min_index]:
+            min_index = i
+    return min_index
 
 
 def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=False):
@@ -226,7 +233,7 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
         cpu_predict += (prediction[i] * flavors_config[i]['CPU'])
         mem_prefict += (prediction[i] * flavors_config[i]['MEM'])
 
-    type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
+    type_i_fix = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
     
     vms = []
     for i in range(len(prediction)):
@@ -258,10 +265,30 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
             cpu += flavors_config[flavors_unique.index(k)]['CPU']*v
             mem += flavors_config[flavors_unique.index(k)]['MEM']*v
         return cpu,mem
-    
+
+
+    type_i = type_i_fix
     while(len(vms)!=0):
         vm_flavor = vms[0][0]
         vm_config = vms[0][1]
+        # ------------------refiting ------------------------------  
+        # refit = False
+        # insert_order = list(range(machine_number))
+        # for i in insert_order:
+        #     for j in range(len(backpack_result[i])):
+        #         cpu_total,mem_total = machine_config[i]['CPU'],machine_config[i]['MEM']
+        #         cpu_used,mem_used = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,backpack_result[i][j])
+        #         if cpu_total-cpu_used>=vm_config['CPU'] and mem_total-mem_used>=vm_config['MEM']:
+        #             backpack_result[i][j][vm_flavor]+=1
+        #             # success
+        #             refit = True
+        #             break
+        #     if refit:
+        #         break
+        # if refit:
+        #     vms.pop(0)
+        #     continue
+        # -------------------normal fitting------------------------
         if placing[type_i] == None:
             placing[type_i] = {}.fromkeys(flavors_unique)
             for f in flavors_unique:
@@ -279,15 +306,30 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 
                 # add @2018-04-18
                 # select next type of entity machine
-                # type_i = random.choice(range(machine_number))
+                if random.random()<0.0:
+                    type_i = random.choice(range(machine_number))
+                else:
+                    type_i = type_i_fix
+                
 
     for i in range(len(placing)):
         if placing[i]!=None:
 
             # add @2018-04-18
-            cpu_used,mem_used = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,placing[type_i])
+            cpu_used,mem_used = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,placing[i])
             if cpu_used!=0 and mem_used!=0:
-                backpack_result[i].append(placing[i])
+                possible = []
+                for k in range(machine_number):
+                    if machine_config[k]['CPU']>=cpu_used and machine_config[k]['MEM']>=mem_used:
+                        possible.append(True)
+                    else:
+                        possible.append(False)
+                scores = [(cpu_used/float(machine_config[k]['CPU']) + mem_used/float(machine_config[k]['MEM']))/2.0 if possible[k] else 0 for k in range(machine_number)]
+
+                best_i = argmax(scores)
+                backpack_result[best_i].append(placing[i])
+                
+                # backpack_result[i].append(placing[i])
 
     backpack_count = [len(b) for b in backpack_result]
 
@@ -327,6 +369,7 @@ def predict_vm(ecs_lines,input_lines):
         mem_total_total = 0
         cpu_used_total_total = 0
         mem_used_total_total = 0
+        
         for i in range(machine_number):
             cpu_total = len(backpack_result[i])*machine_config[i]['CPU']
             mem_total = len(backpack_result[i])*machine_config[i]['MEM']
@@ -359,13 +402,14 @@ def predict_vm(ecs_lines,input_lines):
 
         # find the best score solution 
         score  = (cpu_rate+mem_rate)/2.0
-        print(score)
+        # print(score)
         
         if not max_score or max_score<score:
             max_score = score
             best_result = backpack_result
             min_count = backpack_count
-
+    
+    print(max_score)
     backpack_count = min_count
     backpack_result = best_result
 
