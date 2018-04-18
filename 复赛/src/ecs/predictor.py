@@ -3,19 +3,11 @@ import random
 import re
 from datetime import datetime, timedelta
 
-from linalg.common import abs, dim, fancy, mean, minus, shape, sum, zeros
-from linalg.matrix import stdev
-
-# from linalg.common import (apply, dim, dot, fancy, flatten, mean, minus,
-#                            multiply, plus, reshape, shape, sqrt, square, sum,
-#                            zeros)
-# from linalg.matrix import (corrcoef, hstack, matrix_copy, matrix_matmul,
-#                            matrix_transpose, shift, stdev, vstack)
-# from linalg.vector import arange, argsort, count_nonezero
-# from metrics import l2_loss, official_score
-# from preprocessing import (maxabs_scaling, minmax_scaling, normalize,
-#                            standard_scaling)
-
+from learn.ridge import Ridge
+from linalg.common import (abs, apply, dim, fancy, mean, minus, reshape, shape,
+                           sqrt, sum, zeros)
+from linalg.matrix import hstack, stdev
+from linalg.vector import arange
 
 # checked
 def parse_input_lines(input_lines):
@@ -156,7 +148,6 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     return sample
 
 
-
 def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end):
     predict_days = (predict_end-predict_start).days #check
     hours = ((predict_end-predict_start).seconds/float(3600))
@@ -181,17 +172,15 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     # sample = exponential_smoothing(sample)
     # sample = sample[-7:]
 
-    from learn.ridge import Ridge
-    from linalg.common import apply,reshape,sqrt
-    from linalg.vector import arange
-    from linalg.matrix import hstack
     prediction = []
     skip_days = (predict_start-training_end).days
     for i in range(shape(sample)[1]):
         clf = Ridge(alpha=1)
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
-        X_test = [[len(sample)+1+skip_days]]
+
+        # unbias estimation
+        X_test = [[len(sample)+skip_days]]
         # X = hstack([X,apply(X,lambda x:x**2),apply(X,lambda x:math.pow(x,3))])
         # X_test = hstack([X_test,apply(X_test,lambda x:x**2),apply(X_test,lambda x:math.pow(x,3))])
         
@@ -279,7 +268,6 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 placing[type_i][f] = 0 
             continue
         else:
-            # print(len(vms))
             cpu_total,mem_total = machine_config[type_i]['CPU'],machine_config[type_i]['MEM']
             cpu_used,mem_used = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,placing[type_i])
             if cpu_total-cpu_used<vm_config['CPU'] or mem_total-mem_used<vm_config['MEM']:
@@ -289,13 +277,23 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 placing[type_i][vm_flavor]+=1
                 vms.pop(0)
                 
+                # add @2018-04-18
+                # select next type of entity machine
+                type_i = random.choice(range(machine_number))
+
     for i in range(len(placing)):
         if placing[i]!=None:
-            backpack_result[i].append(placing[i])
+
+            # add @2018-04-18
+            cpu_used,mem_used = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,placing[type_i])
+            if cpu_used!=0 and mem_used!=0:
+                backpack_result[i].append(placing[i])
 
     backpack_count = [len(b) for b in backpack_result]
 
     return backpack_count,backpack_result
+
+
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
@@ -315,14 +313,59 @@ def predict_vm(ecs_lines,input_lines):
     # flavors_config:
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    
+    print(machine_config)
+
+
     min_count = None
     best_result = None
+
+    def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
+        def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
+            cpu = 0
+            mem = 0
+            for k,v in em.items():
+                cpu += flavors_config[flavors_unique.index(k)]['CPU']*v
+                mem += flavors_config[flavors_unique.index(k)]['MEM']*v
+            return cpu,mem
+        
+        cpu_total_total = 0
+        mem_total_total = 0
+        cpu_used_total_total = 0
+        mem_used_total_total = 0
+        for i in range(machine_number):
+            cpu_total = len(backpack_result[i])*machine_config[i]['CPU']
+            mem_total = len(backpack_result[i])*machine_config[i]['MEM']
+            cpu_total_total += cpu_total
+            mem_total_total += cpu_total
+
+            # state:[(cpu,mem),(cpu,mem)...]
+            # [(81, 155), (82, 159), (84, 157), (81, 153)]
+            print(backpack_result[i])
+            state = [_get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em) for em in backpack_result[i]]
+            print(state)
+            cpu_used_total = sum([s[0] for s in state])
+            mem_used_total = sum([s[1] for s in state])
+
+            cpu_used_total_total += cpu_used_total
+            mem_used_total_total += mem_used_total
+
+
+            print(cpu_used_total,cpu_total_total)
+            # print(mem_used_total,mem_total_total)
+
+        cpu_rate = cpu_used_total_total/float(cpu_total_total)
+        mem_rate = mem_used_total_total/float(mem_total_total)
+        return cpu_rate,mem_rate
+
     for i in range(1000):
         backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
+        cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
+        # print(cpu_rate,mem_rate)
         if not min_count or min_count>backpack_count:
             min_count = backpack_count
             best_result = backpack_result
-
+        exit()
     backpack_count = min_count
     backpack_result = best_result
 
@@ -330,8 +373,6 @@ def predict_vm(ecs_lines,input_lines):
     result.append('{}'.format(sum(prediction)))
     for i in range(len(prediction)):
         result.append('flavor{} {}'.format(flavors_unique[i],prediction[i]))
-
-    # result.append('') # output '\n'
 
     # General  2
     # General-1  flavor5  2
