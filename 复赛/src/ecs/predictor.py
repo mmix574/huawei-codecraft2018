@@ -344,7 +344,7 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
     return backpack_count,backpack_result
 
 
-def get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000):
+def get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000,score_treadhold=0.8):
     meta_solu = []
 
     vms = []
@@ -356,25 +356,28 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
             for _ in range(prediction[i])]
             )
     
+    def get_solu_cpu_mem(solu,flavors_unique,flavors_config):
+        cpu = 0 
+        mem = 0 
+        for i in range(len(flavors_unique)):
+            cpu += solu[i]*flavors_config[i]['CPU']
+            mem += solu[i]*flavors_config[i]['MEM']
+        return cpu,mem
+
     def estimate_partial_score(config,solu,flavors_unique,flavors_config):
         cpu_total = config['CPU']
         mem_total = config['MEM']
         
-        def get_solu_cpu_mem(solu,flavors_unique,flavors_config):
-            cpu = 0 
-            mem = 0 
-            for i in range(len(flavors_unique)):
-                cpu += solu[i]*flavors_config[flavors_unique[i]]['CPU']
-                mem += solu[i]*flavors_config[flavors_unique[i]]['MEM']
-            return cpu,mem
+
         
         cpu_used,mem_used = get_solu_cpu_mem(solu,flavors_unique,flavors_config)
+        # print(cpu_used,mem_used)
         cpu_rate = cpu_used/float(cpu_total)
         mem_rate = mem_used/float(mem_total)
-        
         return (cpu_rate+mem_rate)/2.0
 
-    def generate_single_prediction_based(config,flavors_unique,flavors_config,vms,max_iter=1000,scoring_treadhold=0.97):
+
+    def generate_single_prediction_based(config,flavors_unique,flavors_config,vms,max_iter=1000,score_treadhold=0.8):
         result = set()
         for i in range(max_iter):
             cpu = config['CPU']
@@ -387,7 +390,7 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
             # solu:
             # [0,1,2,3,4,5]<-- index
             # (3,4,7,1,0) <-- count
-            solu = list(range(len(flavors_unique))) 
+            solu = [ 0 for _ in range(len(flavors_unique))]  
 
             for vm in vms:
                 if cpu>=vm[1]['CPU'] and mem>=vm[1]['MEM']:
@@ -399,9 +402,8 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
 
             score = estimate_partial_score(config,solu,flavors_unique,flavors_config)
             
-            print(score)
-
-            result.add(solu)
+            if score >= score_treadhold:
+                result.add(solu)
         return result
 
 
@@ -410,19 +412,36 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
         return result
 
     for i in range(machine_number):
-        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms)
+        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,score_treadhold=score_treadhold)
+        # print(len(solu))
         meta_solu.append(solu)
 
     return meta_solu
 
 
 def dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+    backpack_result = None
+    solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000,score_treadhold=0.98)
+    
+    print(prediction)
+
+    for s in solutions:
+        print(list(s)[0])
+
+    # print(solutions)
+    exit()
+
+    backpack_count = [len(b) for b in backpack_result]
+    
+
+    # backpack_count: entity machine sum
+    # backpack_result:
+    # [[{f1:3,f2:8}..etc....] 
+    # [.......]
+    # [.......]]
+    return backpack_count,backpack_result
 
 
-    print("hello world")    
-    
-    
-    return None
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
@@ -443,9 +462,9 @@ def predict_vm(ecs_lines,input_lines):
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     
-    solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000)
-    print(solutions)
-    exit()
+    
+    # dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    # exit()
 
     def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
         def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
@@ -491,6 +510,10 @@ def predict_vm(ecs_lines,input_lines):
     min_count = None
     for i in range(1000):
         backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
+        print(backpack_count)
+        print(backpack_result)
+        exit()
+        
         cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
 
         # find the best score solution 
