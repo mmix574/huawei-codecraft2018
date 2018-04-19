@@ -344,6 +344,86 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
     return backpack_count,backpack_result
 
 
+def get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000):
+    meta_solu = []
+
+    vms = []
+    for i in range(len(prediction)):
+        f_config = flavors_config[i] 
+        vms.extend(
+            [
+                [flavors_unique[i],{'CPU':f_config['CPU'],'MEM':f_config['MEM']}] 
+            for _ in range(prediction[i])]
+            )
+    
+    def estimate_partial_score(config,solu,flavors_unique,flavors_config):
+        cpu_total = config['CPU']
+        mem_total = config['MEM']
+        
+        def get_solu_cpu_mem(solu,flavors_unique,flavors_config):
+            cpu = 0 
+            mem = 0 
+            for i in range(len(flavors_unique)):
+                cpu += solu[i]*flavors_config[flavors_unique[i]]['CPU']
+                mem += solu[i]*flavors_config[flavors_unique[i]]['MEM']
+            return cpu,mem
+        
+        cpu_used,mem_used = get_solu_cpu_mem(solu,flavors_unique,flavors_config)
+        cpu_rate = cpu_used/float(cpu_total)
+        mem_rate = mem_used/float(mem_total)
+        
+        return (cpu_rate+mem_rate)/2.0
+
+    def generate_single_prediction_based(config,flavors_unique,flavors_config,vms,max_iter=1000,scoring_treadhold=0.97):
+        result = set()
+        for i in range(max_iter):
+            cpu = config['CPU']
+            mem = config['MEM']
+            from random import shuffle
+            shuffle(vms)
+            
+            # [f1,f3,f5,f8,f9] <--flavor unique
+            #  |  |  |  |  |
+            # solu:
+            # [0,1,2,3,4,5]<-- index
+            # (3,4,7,1,0) <-- count
+            solu = list(range(len(flavors_unique))) 
+
+            for vm in vms:
+                if cpu>=vm[1]['CPU'] and mem>=vm[1]['MEM']:
+                    solu[flavors_unique.index(vm[0])] += 1
+                    cpu-=vm[1]['CPU'] 
+                    mem-=vm[1]['MEM']
+            
+            solu = tuple(solu) #hashable tuple
+
+            score = estimate_partial_score(config,solu,flavors_unique,flavors_config)
+            
+            print(score)
+
+            result.add(solu)
+        return result
+
+
+    def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000):
+        result = set()
+        return result
+
+    for i in range(machine_number):
+        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms)
+        meta_solu.append(solu)
+
+    return meta_solu
+
+
+def dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+
+
+    print("hello world")    
+    
+    
+    return None
+
 # build output lines
 def predict_vm(ecs_lines,input_lines):
     if input_lines is None or ecs_lines is None:
@@ -363,9 +443,9 @@ def predict_vm(ecs_lines,input_lines):
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     
-    # solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000)
-    # print(solutions)
-    # exit()
+    solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000)
+    print(solutions)
+    exit()
 
     def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
         def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
@@ -402,6 +482,8 @@ def predict_vm(ecs_lines,input_lines):
         cpu_rate = cpu_used_total_total/float(cpu_total_total)
         mem_rate = mem_used_total_total/float(mem_total_total)
         return cpu_rate,mem_rate
+    # end get_backpack_score function
+
 
     # maximize score
     max_score = None
