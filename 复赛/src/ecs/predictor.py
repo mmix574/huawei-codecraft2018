@@ -404,10 +404,9 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
                 result.add(solu)
         return result
 
-
-    def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000):
-        result = set()
-        return result
+    # def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000):
+    #     result = set()
+    #     return result
 
     for i in range(machine_number):
         solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
@@ -415,6 +414,7 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
         meta_solu.append(solu)
 
     return meta_solu
+
 
 
 def dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
@@ -432,13 +432,14 @@ def dynamic_programming_backpack(machine_number,machine_name,machine_config,flav
     fit = True
     while(fit):
         fit = False
-        for pickers in solutions:
+        for pickers in solutions[::-1]:
             for picker in pickers:
                 picker = list(picker)
                 if possible(prediction,picker):
                     prediction = minus(prediction,picker)
                     fit = True
 
+    
     print(prediction)
 
     # print(solutions)
