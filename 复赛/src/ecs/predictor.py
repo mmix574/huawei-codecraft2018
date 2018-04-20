@@ -406,10 +406,11 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
 
     def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000,score_treadhold=0.99):
         result = set()
-        cpu = config['CPU']
-        mem = config['MEM']
 
-        for i in range(max_iter):
+        for _ in range(max_iter):
+            cpu = config['CPU']
+            mem = config['MEM']
+            
             solu = [ 0 for _ in range(len(flavors_unique))] 
             def still_can_fit(cpu,mem,flavors_config):
                 for i in range(len(flavors_config)):
@@ -420,26 +421,24 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
             full = False
             while not full:
                 f_i = random.choice(range(len(flavors_unique)))
-                if flavors_config[i]['CPU']<=cpu and flavors_config[i]['MEM']<=mem:
-                    cpu-=flavors_config[i]['CPU']
-                    mem-=flavors_config[i]['MEM']
+                if flavors_config[f_i]['CPU']<=cpu and flavors_config[f_i]['MEM']<=mem:
+                    cpu-=flavors_config[f_i]['CPU']
+                    mem-=flavors_config[f_i]['MEM']
                     solu[f_i]+=1
                 full = not still_can_fit(cpu,mem,flavors_config)
             solu = tuple(solu)
             score = estimate_partial_score(config,solu,flavors_unique,flavors_config)
-            
-            
-            print(score)
-
-
-            result.add(solu)
+            if score>score_treadhold:
+                result.add(solu)
         
         return result
 
     for i in range(machine_number):
-        # solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
-        solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
-        # print(len(solu))
+        solu1 = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
+        solu2 = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
+        
+        solu = solu1
+
         meta_solu.append(solu)
 
     return meta_solu
