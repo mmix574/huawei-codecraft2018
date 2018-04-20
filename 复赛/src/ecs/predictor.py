@@ -148,6 +148,10 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     assert(shape(sample)==(sample_length,len(flavors_unique)))
     return sample
 
+# todo
+def period_sampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=7,strike=1,skip=0):
+    pass
+
 
 def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end):
     predict_days = (predict_end-predict_start).days #check
