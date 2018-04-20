@@ -404,9 +404,10 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
                 result.add(solu)
         return result
 
-    # def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000):
-    #     result = set()
-    #     return result
+    def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000):
+
+        result = set()
+        return result
 
     for i in range(machine_number):
         solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
@@ -419,9 +420,10 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
 
 def dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
     backpack_result = None
-    solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=10000,score_treadhold=1)
+    solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=10000,score_treadhold=0.99)
 
-    # print(prediction)
+    print(prediction)
+    print(solutions)
     
     def possible(prediction,picker):
         for i in range(len(prediction)):
@@ -447,7 +449,7 @@ def dynamic_programming_backpack(machine_number,machine_name,machine_config,flav
                     fit = True
 
     
-    _,backpack_result_2 = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=False)
+    _,backpack_result_2 = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
 
 
     # backpack merge
