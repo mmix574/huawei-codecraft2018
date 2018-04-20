@@ -150,6 +150,10 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 
 # todo
 def period_sampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=7,strike=1,skip=0):
+
+    
+
+
     pass
 
 
@@ -187,6 +191,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
         # unbias estimation
         X_test = [[len(sample)+skip_days]]
+        # X_test = [[len(sample)+skip_days-1]]
         # X = hstack([X,apply(X,lambda x:x**2),apply(X,lambda x:math.pow(x,3))])
         # X_test = hstack([X_test,apply(X_test,lambda x:x**2),apply(X_test,lambda x:math.pow(x,3))])
 
