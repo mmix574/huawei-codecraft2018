@@ -404,13 +404,41 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
                 result.add(solu)
         return result
 
-    def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000):
-
+    def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000,score_treadhold=0.99):
         result = set()
+        cpu = config['CPU']
+        mem = config['MEM']
+
+        for i in range(max_iter):
+            solu = [ 0 for _ in range(len(flavors_unique))] 
+            def still_can_fit(cpu,mem,flavors_config):
+                for i in range(len(flavors_config)):
+                    if flavors_config[i]['CPU']<=cpu and flavors_config[i]['MEM']<=mem:
+                        return True              
+                return False
+
+            full = False
+            while not full:
+                f_i = random.choice(range(len(flavors_unique)))
+                if flavors_config[i]['CPU']<=cpu and flavors_config[i]['MEM']<=mem:
+                    cpu-=flavors_config[i]['CPU']
+                    mem-=flavors_config[i]['MEM']
+                    solu[f_i]+=1
+                full = not still_can_fit(cpu,mem,flavors_config)
+            solu = tuple(solu)
+            score = estimate_partial_score(config,solu,flavors_unique,flavors_config)
+            
+            
+            print(score)
+
+
+            result.add(solu)
+        
         return result
 
     for i in range(machine_number):
-        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
+        # solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
+        solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
         # print(len(solu))
         meta_solu.append(solu)
 
@@ -533,7 +561,7 @@ def predict_vm(ecs_lines,input_lines):
     max_score = None
     best_result = None
     min_count = None
-    for i in range(5):
+    for i in range(100):
         # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
         backpack_count,backpack_result = dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
 
