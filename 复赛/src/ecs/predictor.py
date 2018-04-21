@@ -150,9 +150,9 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     assert(shape(sample)==(sample_length,len(flavors_unique)))
     return sample
 
-def period_sampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=7,strike=1,skip=0):
 
-    pass
+from linalg.common import square
+
 
 
 def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end):
@@ -162,13 +162,13 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         predict_days += 1
     
     skip_days = (predict_start-training_end).days
-    # hours = ((predict_end-training_end).seconds/float(3600))
-    # if hours >= 12:
-    #     skip_days += 1
+
+    # print(skip_days) #checked
+    # print(predict_days) #checked
 
     sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
 
-    def outlier_handling(sample,method='mean',max_sigma=3.5):
+    def outlier_handling(sample,method='mean',max_sigma=3):
         assert(method=='mean')
         std_ = stdev(sample)
         mean_ = mean(sample,axis=0)
@@ -178,44 +178,35 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                     if method=='mean':
                         sample[i][j] = mean_[j]
         return sample
-
-    sample = outlier_handling(sample,method='mean')
+    
+    # sample = outlier_handling(sample,method='mean')
 
     # from preprocessing import exponential_smoothing
     # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2))
-    # sample = sample[-7:]
-
-
+    
     rate = skip_days/float(predict_days) 
-
     prediction = []
     for i in range(shape(sample)[1]):
-        clf = Ridge(alpha=2)
+        clf = Ridge(alpha=5)
+
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
 
-        # unbias estimation?
-        X_test = [[len(sample)+rate*skip_days]]
-
-        # X = hstack([X,sqrt(X)])
-        # X_test = hstack([X_test,sqrt(X_test)])
+        # unbias estimator
+        X_test = [[len(sample)+rate]]
+        
+        # X = hstack([X,square(X)])
+        # X_test = hstack([X_test,square(X_test)])
 
         # X = hstack([X,apply(X,lambda x:math.log1p(x))])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
 
         # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
-        
-        
         clf.fit(X,y)
-        # debug here
-        # print(clf.W)
+
         p = clf.predict(X_test)
         prediction.extend(p[0])
-
-    # mean is bad
-    # _mean = mean(sample,axis=0)
-    # prediction = [(prediction[i] + _mean[i]) for i in range(len(prediction))]
 
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
     return prediction
@@ -776,9 +767,9 @@ def predict_vm(ecs_lines,input_lines):
     min_count = None
     start = datetime.now()
     i = 0
-    while (datetime.now()-start).seconds<60:
-        # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
-        backpack_count,backpack_result = dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    while (datetime.now()-start).seconds<60 and i<3:
+        backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
+        # backpack_count,backpack_result = dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
 
 
         cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
