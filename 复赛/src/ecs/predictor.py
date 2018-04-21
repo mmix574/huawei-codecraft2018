@@ -134,12 +134,25 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
 
     sample = zeros((sample_length,len(flavors_unique)))
     
+    last_time = [None for i in range(len(flavors_unique))]
+
     for i in range(sample_length):
         for f,ecs_time in ecs_logs:
             # 0 - 6 for example
             # fix serious bug @ 2018-04-11
             if (predict_start_time-ecs_time).days >=(i)*strike and (predict_start_time-ecs_time).days<(i)*strike+frequency:
-                sample[i][mapping_index[f]] += 1
+                if last_time[mapping_index[f]] == None:
+                    sample[i][mapping_index[f]] += 1
+                    last_time[mapping_index[f]] = ecs_time
+
+                else:
+                    if (ecs_time-last_time[mapping_index[f]]).seconds<30:
+                        sample[i][mapping_index[f]] += 1
+                        continue
+                    else:
+                        sample[i][mapping_index[f]] += 1
+                        last_time[mapping_index[f]] = ecs_time
+
     # ----------------------------#
     sample = sample[::-1]
     # [       old data            ]
@@ -149,9 +162,6 @@ def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,fr
     # ----------------------------#
     assert(shape(sample)==(sample_length,len(flavors_unique)))
     return sample
-
-
-from linalg.common import square
 
 
 
@@ -180,35 +190,41 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         return sample
     
     # sample = outlier_handling(sample,method='mean')
-
     # from preprocessing import exponential_smoothing
     # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2))
     
     rate = skip_days/float(predict_days) 
     prediction = []
     for i in range(shape(sample)[1]):
-        clf = Ridge(alpha=5)
+        clf = Ridge(alpha=1)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
 
         # unbias estimator
         X_test = [[len(sample)+rate]]
+        # X_test = [[len(sample)]]
         
         # X = hstack([X,square(X)])
         # X_test = hstack([X_test,square(X_test)])
 
-        # X = hstack([X,apply(X,lambda x:math.log1p(x))])
-        # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
+        X = hstack([X,apply(X,lambda x:math.log1p(x))])
+        X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
 
         # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
         clf.fit(X,y)
+        
+        print(clf.W)
 
         p = clf.predict(X_test)
         prediction.extend(p[0])
 
+
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
+    
+    print(prediction)
+
     return prediction
 
 
