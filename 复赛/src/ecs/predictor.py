@@ -202,7 +202,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         y = fancy(sample,None,(i,i+1))
 
         # unbias estimator
-        X_test = [[len(sample)+rate]]
+        X_test = [[len(sample)+skip_days]]
         # X_test = [[len(sample)]]
         
         # X = hstack([X,square(X)])
@@ -215,7 +215,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
         clf.fit(X,y)
         
-        print(clf.W)
+        # print(clf.W)
 
         p = clf.predict(X_test)
         prediction.extend(p[0])
@@ -223,7 +223,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
     
-    print(prediction)
+    # print(prediction)
 
     return prediction
 
