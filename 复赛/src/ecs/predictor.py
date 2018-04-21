@@ -456,11 +456,9 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
         return result
 
     for i in range(machine_number):
-        solu1 = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
-        # solu2 = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
+        # solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
+        solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
         
-        solu = solu1
-
         meta_solu.append(solu)
 
     return meta_solu
@@ -574,95 +572,109 @@ def random_k_times(machine_number,machine_name,machine_config,flavors_number,fla
 
     return min_count,best_result
 
-def test(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
-    # flavors_unique:
-    # [1, 2, 4, 5, 8]
+# def test(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+#     # flavors_unique:
+#     # [1, 2, 4, 5, 8]
 
-    # prediction:
-    # [32, 32, 11, 21, 44]
+#     # prediction:
+#     # [32, 32, 11, 21, 44]
 
-    # flavors_config:
-    # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
-    # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+#     # flavors_config:
+#     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
+#     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     
-    # debugging
-    # dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
-    # exit()
+#     # debugging
+#     # dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+#     # exit()
 
-    def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
-        def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
-            cpu = 0
-            mem = 0
-            for k,v in em.items():
-                cpu += flavors_config[flavors_unique.index(k)]['CPU']*v
-                mem += flavors_config[flavors_unique.index(k)]['MEM']*v
-            return cpu,mem
+#     def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
+#         def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
+#             cpu = 0
+#             mem = 0
+#             for k,v in em.items():
+#                 cpu += flavors_config[flavors_unique.index(k)]['CPU']*v
+#                 mem += flavors_config[flavors_unique.index(k)]['MEM']*v
+#             return cpu,mem
         
-        cpu_total_total = 0
-        mem_total_total = 0
-        cpu_used_total_total = 0
-        mem_used_total_total = 0
+#         cpu_total_total = 0
+#         mem_total_total = 0
+#         cpu_used_total_total = 0
+#         mem_used_total_total = 0
         
-        for i in range(machine_number):
-            cpu_total = len(backpack_result[i])*machine_config[i]['CPU']
-            mem_total = len(backpack_result[i])*machine_config[i]['MEM']
-            cpu_total_total += cpu_total
-            mem_total_total += mem_total
+#         for i in range(machine_number):
+#             cpu_total = len(backpack_result[i])*machine_config[i]['CPU']
+#             mem_total = len(backpack_result[i])*machine_config[i]['MEM']
+#             cpu_total_total += cpu_total
+#             mem_total_total += mem_total
 
-            # state:[(cpu,mem),(cpu,mem)...]
-            # [(81, 155), (82, 159), (84, 157), (81, 153)]
-            state = [_get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em) for em in backpack_result[i]]
-            cpu_used_total = sum([s[0] for s in state])
-            mem_used_total = sum([s[1] for s in state])
+#             # state:[(cpu,mem),(cpu,mem)...]
+#             # [(81, 155), (82, 159), (84, 157), (81, 153)]
+#             state = [_get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em) for em in backpack_result[i]]
+#             cpu_used_total = sum([s[0] for s in state])
+#             mem_used_total = sum([s[1] for s in state])
 
-            cpu_used_total_total += cpu_used_total
-            mem_used_total_total += mem_used_total
+#             cpu_used_total_total += cpu_used_total
+#             mem_used_total_total += mem_used_total
 
-            # print(cpu_used_total,cpu_total_total)
-            # print(mem_used_total,mem_total_total)
+#             # print(cpu_used_total,cpu_total_total)
+#             # print(mem_used_total,mem_total_total)
 
-        cpu_rate = cpu_used_total_total/float(cpu_total_total)
-        mem_rate = mem_used_total_total/float(mem_total_total)
-        return cpu_rate,mem_rate
-    # end get_backpack_score function
+#         cpu_rate = cpu_used_total_total/float(cpu_total_total)
+#         mem_rate = mem_used_total_total/float(mem_total_total)
+#         return cpu_rate,mem_rate
+#     # end get_backpack_score function
 
 
-    # maximize score
-    max_score = None
-    best_result = None
-    min_count = None
-    for i in range(10):
-        # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
-        backpack_count,backpack_result = dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+#     # maximize score
+#     max_score = None
+#     best_result = None
+#     min_count = None
+#     for i in range(10):
+#         # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
+#         backpack_count,backpack_result = dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
 
-        cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
+#         cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
 
-        # find the best score solution 
-        score  = (cpu_rate+mem_rate)/2.0
+#         # find the best score solution 
+#         score  = (cpu_rate+mem_rate)/2.0
         
-        # print(i,score)
+#         # print(i,score)
 
-        if not max_score or max_score<score:
-            max_score = score
-            best_result = backpack_result
-            min_count = backpack_count
+#         if not max_score or max_score<score:
+#             max_score = score
+#             best_result = backpack_result
+#             min_count = backpack_count
     
-    return max_score
+#     return max_score
 
-    # import re
-    # for i in range(100):
-    #     filename = 'labels_7-8-100/label{}.txt'.format(i)
-    #     lines = open(filename).readlines()
-    #     lines = [l.strip() for l in lines]
-    #     lines = [re.findall('\d+',l) for l in lines]
-    #     prediction = [0 for _ in range(len(flavors_unique))]
+#     # import re
+#     # for i in range(100):
+#     #     filename = 'labels_7-8-100/label{}.txt'.format(i)
+#     #     lines = open(filename).readlines()
+#     #     lines = [l.strip() for l in lines]
+#     #     lines = [re.findall('\d+',l) for l in lines]
+#     #     prediction = [0 for _ in range(len(flavors_unique))]
 
-    #     for l in lines:
-    #         prediction[flavors_unique.index(int(l[0]) )] = int(l[1])
-    #     print(prediction)
+#     #     for l in lines:
+#     #         prediction[flavors_unique.index(int(l[0]) )] = int(l[1])
+#     #     print(prediction)
 
-    #     # score = test(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
-    #     # print(score)
+#     #     # score = test(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+#     #     # print(score)
+
+
+def test():
+    pass
+
+
+def mcts(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+    meta_solu = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=10000,score_treadhold=0.99)
+    count = 0
+    for s in meta_solu:
+        count+=len(s)
+    print(count)
+
+
 
 
 # build output lines
@@ -675,6 +687,9 @@ def predict_vm(ecs_lines,input_lines):
 
     prediction = predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end)
 
+    mcts(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    exit()
+
     # flavors_unique:
     # [1, 2, 4, 5, 8]
 
@@ -685,9 +700,6 @@ def predict_vm(ecs_lines,input_lines):
     # [{'MEM': 1, 'CPU': 1}, {'MEM': 2, 'CPU': 1}, {'MEM': 2,'CPU': 2}, {'MEM': 4, 'CPU': 2}, {'MEM': 8, 'CPU': 4}]
     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     
-    # debugging
-    # dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
-    # exit()
 
     def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
         def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
