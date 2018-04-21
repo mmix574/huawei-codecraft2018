@@ -9,9 +9,10 @@ from linalg.common import (abs, apply, dim, fancy, mean, minus, reshape, shape,
 from linalg.matrix import hstack, stdev
 from linalg.vector import arange, argmax, argmin
 
-random.seed(42)
 
-# checked
+# change random seed.
+random.seed(77)
+
 def parse_input_lines(input_lines):
     # strip each line
     input_lines = [x.strip() for x in input_lines]
@@ -189,7 +190,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
     prediction = []
     for i in range(shape(sample)[1]):
-        clf = Ridge(alpha=2)  <--
+        clf = Ridge(alpha=2)
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
 
@@ -207,7 +208,8 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         
         
         clf.fit(X,y)
-        print(clf.W)
+        # debug here
+        # print(clf.W)
         p = clf.predict(X_test)
         prediction.extend(p[0])
 
@@ -331,18 +333,13 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 # add @2018-04-18
                 # select next type of entity machine
                 # type_i = random.choice(range(machine_number))
+
+
                 if mem_prefict==0:
                     break
-
-                # 1.Greedy Algorithm
+                # 1.Greedy Select
                 type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
 
-                # 2.Simulated annealing Algorithm
-                # if random.random()<0.01:
-                #     type_i = random.choice(range(machine_number))
-                # else:
-                #     type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
-                # good score on local testing set. 
 
     for i in range(len(placing)):
         if placing[i]!=None:
@@ -668,6 +665,23 @@ def random_k_times(machine_number,machine_name,machine_config,flavors_number,fla
 def test():
     pass
 
+
+def single_backpack_score(machine_config_single,flavors_unique,flavors_config,em):
+    def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
+        cpu = 0
+        mem = 0
+        for k,v in em.items():
+            cpu += flavors_config[flavors_unique.index(k)]['CPU']*v
+            mem += flavors_config[flavors_unique.index(k)]['MEM']*v
+        return cpu,mem
+    
+    cpu,mem = _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em)
+
+    cpu_rate = cpu/float(machine_config_single['CPU'])
+    mem_rate = mem/float(machine_config_single['MEM'])
+
+    return (cpu_rate+mem_rate)/2.0
+
 def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
     def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
         cpu = 0
@@ -704,8 +718,9 @@ def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_conf
     mem_rate = mem_used_total_total/float(mem_total_total)
     return cpu_rate,mem_rate
 
+# add 2018-04-21
 def mcts(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
-    meta_solu = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=10000,score_treadhold=0.99)
+    meta_solu = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000,score_treadhold=0.99)
     count = 0
     
     print(meta_solu)
@@ -715,6 +730,13 @@ def mcts(machine_number,machine_name,machine_config,flavors_number,flavors_uniqu
         count+=len(s)
     print(count)
 
+
+
+
+# add 2018-04-21
+def dynamic_programming(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+
+    pass
 
 
 # build output lines
@@ -727,9 +749,11 @@ def predict_vm(ecs_lines,input_lines):
 
     prediction = predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end)
 
+
     # testing
     # prediction = [100 for _ in range(len(flavors_unique))]
     # mcts(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    # random_boosting(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     # exit()
 
     # flavors_unique:
@@ -750,9 +774,12 @@ def predict_vm(ecs_lines,input_lines):
     max_score = None
     best_result = None
     min_count = None
-    for i in range(5):
+    start = datetime.now()
+    i = 0
+    while (datetime.now()-start).seconds<60:
         # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
         backpack_count,backpack_result = dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+
 
         cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
 
@@ -760,6 +787,7 @@ def predict_vm(ecs_lines,input_lines):
         score  = (cpu_rate+mem_rate)/2.0
         
         print(i,score)
+        i+=1
 
         if not max_score or max_score<score:
             max_score = score
