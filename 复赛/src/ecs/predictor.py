@@ -177,7 +177,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
 
     def outlier_handling(sample,method='mean',max_sigma=3):
-        assert(method=='mean')
+        assert(method=='mean' or method=='dynamic')
         std_ = stdev(sample)
         mean_ = mean(sample,axis=0)
         for i in range(shape(sample)[0]):
@@ -185,13 +185,16 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                if sample[i][j]-mean_[j] >max_sigma*std_[j]:
                     if method=='mean':
                         sample[i][j] = mean_[j]
+                    elif method=='dynamic':
+                        sample[i][j] = (mean_[j] + sample[i][j])/2.0
         return sample
-    
-    sample = outlier_handling(sample,method='mean')
+
+    sample = outlier_handling(sample,method='dynamic',max_sigma=0)
 
     # from preprocessing import exponential_smoothing
     # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2))
-    sample=sample[-14:]
+
+    assert(len(sample)<5)
 
     rate = skip_days/float(predict_days) 
     prediction = []
@@ -200,7 +203,8 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
-
+        
+        # X_min = 
         # X1 = mean(X[:len(X)/2])
         # X2 = mean(X[len(X)/2:])
 
