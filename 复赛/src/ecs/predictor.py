@@ -10,7 +10,7 @@ from linalg.matrix import hstack, stdev
 from linalg.vector import arange, argmax, argmin
 
 
-# change random seed.
+# change lucky random seed.
 random.seed(77)
 
 def parse_input_lines(input_lines):
@@ -84,7 +84,6 @@ def parse_input_lines(input_lines):
     return machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,predict_start,predict_end
 
 
-# checked
 def parse_ecs_lines(ecs_lines,flavors_unique):
     ecs_lines = [l.strip() for l in ecs_lines]
     ecs_logs = []
@@ -114,8 +113,7 @@ def parse_ecs_lines(ecs_lines,flavors_unique):
     return ecs_logs,training_start,training_end
 
 
-# add @2018-04-10
-# refactoring, do one thing.
+
 def resampling(ecs_logs,flavors_unique,training_start_time,predict_start_time,frequency=7,strike=1,skip=0):
     # checked
     def __get_flavors_unique_mapping(flavors_unique):
@@ -189,14 +187,16 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                         sample[i][j] = mean_[j]
         return sample
     
-    # sample = outlier_handling(sample,method='mean')
+    sample = outlier_handling(sample,method='mean')
+
     # from preprocessing import exponential_smoothing
     # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2))
-    
+    sample=sample[-14:]
+
     rate = skip_days/float(predict_days) 
     prediction = []
     for i in range(shape(sample)[1]):
-        clf = Ridge(alpha=1)
+        clf = Ridge(alpha=1,penalty_bias=False)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
@@ -211,7 +211,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         # b = y1-k*X1
         
         # unbias estimator
-        X_test = [[len(sample)+skip_days]]
+        X_test = [[len(sample)+rate]]
         # X_test = [[len(sample)]]
         
         # X = hstack([X,square(X)])
@@ -222,16 +222,17 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
         # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
+
         
         clf.fit(X,y)
         p = clf.predict(X_test)
-        print(clf.W)
+        # print(clf.W)
         # p = apply(X_test,lambda x:k*x+b)
         prediction.extend(p[0])
 
     # prediction = mean(sample,axis=0)
-    # prediction = [int(round(p))*2 if p>0 else 0 for p in prediction]
 
+    # prediction = [int(round(p))*2 if p>0 else 0 for p in prediction]
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
 
     return prediction
