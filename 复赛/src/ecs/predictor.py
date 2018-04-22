@@ -201,6 +201,15 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
 
+        # X1 = mean(X[:len(X)/2])
+        # X2 = mean(X[len(X)/2:])
+
+        # y1 = mean(y[:len(y)/2])
+        # y2 = mean(y[len(y)/2:])
+
+        # k = (y2-y1)/(X2-X1)
+        # b = y1-k*X1
+        
         # unbias estimator
         X_test = [[len(sample)+skip_days]]
         # X_test = [[len(sample)]]
@@ -208,22 +217,22 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         # X = hstack([X,square(X)])
         # X_test = hstack([X_test,square(X_test)])
 
-        X = hstack([X,apply(X,lambda x:math.log1p(x))])
-        X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
+        # X = hstack([X,apply(X,lambda x:math.log1p(x))])
+        # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
 
         # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
-        clf.fit(X,y)
         
-        # print(clf.W)
-
+        clf.fit(X,y)
         p = clf.predict(X_test)
+        print(clf.W)
+        # p = apply(X_test,lambda x:k*x+b)
         prediction.extend(p[0])
 
+    # prediction = mean(sample,axis=0)
+    # prediction = [int(round(p))*2 if p>0 else 0 for p in prediction]
 
     prediction = [int(round(p)) if p>0 else 0 for p in prediction]
-    
-    # print(prediction)
 
     return prediction
 

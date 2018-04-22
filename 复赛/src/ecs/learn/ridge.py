@@ -7,7 +7,7 @@ from linalg.common import fancy,sum
 
 
 class Ridge:
-    def __init__(self,alpha=1,fit_intercept=True,penalty_loss=None):
+    def __init__(self,alpha=1,fit_intercept=True,penalty_bias=True):
         self.alpha = alpha
         self.fit_intercept = fit_intercept
         self.W = None
@@ -15,7 +15,7 @@ class Ridge:
         # self.bias_penalty = bias_penalty
         
         self.importance_ = None
-        self.penalty_loss = penalty_loss
+        self.penalty_bias = penalty_bias
     def fit(self,X,y):
         X,y = self._check(X,y)
         
@@ -26,13 +26,13 @@ class Ridge:
         
         eye = identity_matrix(shape(X)[1])
         from linalg.matrix import diag
-        if self.penalty_loss:
-            eye = diag(self.penalty_loss)
+        if not self.penalty_bias:
+            eye[0][0] = 0
         X_T = matrix_transpose(X)
         
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(
-            # plus(matrix_matmul(X_T,X),multiply(eye,self.alpha*shape(X)[0]))
-            plus(matrix_matmul(X_T,X),multiply(eye,1))
+            plus(matrix_matmul(X_T,X),multiply(eye,self.alpha*shape(X)[0]))
+            # plus(matrix_matmul(X_T,X),multiply(eye,1))
         ),X_T),y)
         self.importance_ = sum(self.W,axis=1)
         if self.fit_intercept:

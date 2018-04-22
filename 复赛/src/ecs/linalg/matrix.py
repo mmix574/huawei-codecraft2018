@@ -1,7 +1,5 @@
-from common import mean, multiply, sqrt, square
-from linalg.common import mean, minus, sqrt, square
-
-from .common import dim, shape, zeros
+from linalg.common import (dim, mean, minus, multiply, shape, sqrt, square,
+                           zeros)
 
 
 def matrix_matmul(A,B):
