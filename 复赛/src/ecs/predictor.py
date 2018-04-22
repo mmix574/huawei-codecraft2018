@@ -10,7 +10,7 @@ from linalg.matrix import hstack, stdev
 from linalg.vector import arange, argmax, argmin
 
 # change lucky random seed.
-random.seed(77)
+# random.seed(77)
 
 def parse_input_lines(input_lines):
     # strip each line
@@ -230,6 +230,11 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     return prediction
 
 
+
+def random_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+    
+    pass
+
 def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=False):
     # parameters:
     # machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction
@@ -344,10 +349,10 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 # type_i = random.choice(range(machine_number))
 
 
-                if mem_prefict==0:
-                    break
+                # if mem_prefict==0:
+                    # break
                 # 1.Greedy Select
-                type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
+                # type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_prefict))))
 
 
     for i in range(len(placing)):
@@ -691,50 +696,60 @@ def score_estimate(machine_number,machine_name,machine_config,flavors_number,fla
     return mean(scores),max_score,best_backpack_result
 
 
+# def mcts(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+#     meta_solu = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000,score_treadhold=0.98)
+#     solutions = []
+#     for i in range(len(meta_solu)):
+#         solutions.extend([(i,list(m)) for m in meta_solu[i]])
 
-# add 2018-04-21
-def mcts(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
-    meta_solu = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_iter=1000,score_treadhold=0.99)
-    solutions = []
-    for i in range(len(meta_solu)):
-        solutions.extend([(i,list(m)) for m in meta_solu[i]])
+#     backpack_result_a = [[] for _ in range(machine_number)]
 
-    backpack_result_a = [[] for _ in range(machine_number)]
+#     continue_optimize = prediction
 
 
-    continue_optimize = prediction
-    part_A_len = 0
-    part_B_len = len(prediction)
+#     # part_A_len = 0
+#     # part_B_len = len(prediction)
 
-    def possible(continue_optimize,solutions):
-        for solution in solutions:
-            picker = list(solution[1])
-            if min(minus(continue_optimize,picker))>=0:
-                return True 
-        return False
+#     def possible(continue_optimize,solutions):
+#         for solution in solutions:
+#             picker = list(solution[1])
+#             if min(minus(continue_optimize,picker))>=0:
+#                 return True 
+#         return False
 
-    print(len(solutions))
-    
-    exit()
-    
-    # for i in range(10000):
-        # print(possible(continue_optimize,solutions))
+#     while(possible(continue_optimize,solutions)):
+#         # s = random.choice(solutions)
+#         best_score = None
+#         best_s = None
+#         i = 0
+#         while not best_s or i<10:
+#             s = random.choice(solutions)
+#             if possible(continue_optimize,[s]):
+#                 picker = s[1]
+#                 score,max_score,best_backpack_result = score_estimate(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,minus(continue_optimize,picker),max_step=50)
+#                 if not best_score or best_score<score:
+#                     best_score = score
+#                     best_s = s
+#             i+=1
+#         print(best_s)
+#         picker = best_s[1]
+#         print(picker)
+#         continue_optimize = minus(continue_optimize,picker)
+#         print(best_score)
 
-    # while(possible(continue_optimize,solutions)):
-        # pass
+#     exit()
+#     score,max_score,backpack_result_b = score_estimate(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_step=50)
 
-    score,max_score,backpack_result_b = score_estimate(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,max_step=50)
+#     def merge(backpack_result_a,backpack_result_b):
+#         from copy import deepcopy
+#         backpack_result_a = deepcopy(backpack_result_a)
+#         for i in range(len(backpack_result_a)):
+#             backpack_result_a[i].extend(backpack_result_b[i])
+#         return backpack_result_a
 
-    def merge(backpack_result_a,backpack_result_b):
-        from copy import deepcopy
-        backpack_result_a = deepcopy(backpack_result_a)
-        for i in range(len(backpack_result_a)):
-            backpack_result_a[i].extend(backpack_result_b[i])
-        return backpack_result_a
+#     print(max_score)
 
-    print(max_score)
-
-    exit()
+#     exit()
     
 
 
@@ -747,10 +762,6 @@ def predict_vm(ecs_lines,input_lines):
     ecs_logs,training_start,training_end = parse_ecs_lines(ecs_lines,flavors_unique)
 
     prediction = predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end)
-
-    mcts(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
-
-    exit()
 
     # flavors_unique:
     # [1, 2, 4, 5, 8]
@@ -772,9 +783,9 @@ def predict_vm(ecs_lines,input_lines):
     start = datetime.now()
     i = 0
     
-    percent = [0.99]
+    percent = [0.99,0.98,0.97]
 
-    while (datetime.now()-start).seconds<60:
+    while (datetime.now()-start).seconds<70:
         p = random.choice(percent)
         
         print(p)
