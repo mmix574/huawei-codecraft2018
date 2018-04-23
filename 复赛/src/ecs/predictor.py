@@ -202,7 +202,8 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
-        y = apply(y,lambda x:math.log(x))
+        # y = apply(y,lambda x:math.log(x))
+
 
         X_test = reshape(list(range(len(sample)+skip_days,len(sample)+skip_days+predict_days)),(-1,1))
         
@@ -213,14 +214,14 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
 
 
-        -->
-        X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
-        X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
+        # -->
+        # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
+        # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
 
         
         clf.fit(X,y)
         p = clf.predict(X_test)
-        p = apply(p,lambda x:math.exp(x))
+        # p = apply(p,lambda x:math.exp(x))
 
         print(clf.W)
         prediction.append(sum(flatten(p)))
