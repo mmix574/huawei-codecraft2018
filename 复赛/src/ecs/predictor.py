@@ -174,7 +174,6 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     # sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
     sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=1,strike=1,skip=0)
 
-
     def outlier_handling(sample,method='mean',max_sigma=3):
         assert(method=='mean' or method=='dynamic')
         std_ = stdev(sample)
@@ -189,20 +188,19 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         return sample
 
     # sample = outlier_handling(sample,method='dynamic',max_sigma=3.5)
-    # sample = outlier_handling(sample,method='mean',max_sigma=3)
+    # sample = outlier_handling(sample,method='mean',max_sigma=3.5)
     
-    from preprocessing import exponential_smoothing
-    sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2),alpha=0.2)
+    # from preprocessing import exponential_smoothing
+    # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2),alpha=0.2)
 
     # rate = skip_days/float(predict_days) 
     prediction = []
     for i in range(shape(sample)[1]):
 
-        clf = Ridge(alpha=1,fit_intercept=True)
+        clf = Ridge(alpha=3,fit_intercept=False)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
-        # y = apply(y,lambda x:math.log(x))
 
 
         X_test = reshape(list(range(len(sample)+skip_days,len(sample)+skip_days+predict_days)),(-1,1))
@@ -214,16 +212,15 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
 
 
-        # -->
         # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
 
         
         clf.fit(X,y)
         p = clf.predict(X_test)
-        # p = apply(p,lambda x:math.exp(x))
+        # print(p)
 
-        print(clf.W)
+        # print(clf.W)
         prediction.append(sum(flatten(p)))
 
     # prediction = mean(sample,axis=0)
