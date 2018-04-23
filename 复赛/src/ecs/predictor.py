@@ -487,8 +487,8 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
         return result
 
     for i in range(machine_number):
-        # solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
-        solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
+        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
+        # solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
         
         meta_solu.append(solu)
 
@@ -797,11 +797,11 @@ def predict_vm(ecs_lines,input_lines):
     start = datetime.now()
     i = 0
     
-    percent = [0.99,0.98,0.97]
+    percent = [1,0.99,0.98]
 
     while (datetime.now()-start).seconds<70:
-        p = random.choice(percent)
-        
+        # p = random.choice(percent)
+        p = percent[i%len(percent)]  
         print(p)
         # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
         backpack_count,backpack_result = dynamic_programming_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,score_treadhold=p)
