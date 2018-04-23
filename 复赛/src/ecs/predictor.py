@@ -10,7 +10,7 @@ from linalg.matrix import hstack, stdev
 from linalg.vector import arange, argmax, argmin
 
 # change lucky random seed.
-random.seed(77)
+random.seed(78)
 
 def parse_input_lines(input_lines):
     # strip each line
@@ -184,10 +184,11 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                     if method=='mean':
                         sample[i][j] = mean_[j]
                     elif method=='dynamic':
-                        sample[i][j] = (mean_[j] + sample[i][j])/2.0
+                        if i<len(sample)/2.0:
+                            sample[i][j] = (mean_[j] + sample[i][j])/2.0
         return sample
 
-    # sample = outlier_handling(sample,method='dynamic',max_sigma=3.5)
+    # sample = outlier_handling(sample,method='dynamic',max_sigma=3)
     # sample = outlier_handling(sample,method='mean',max_sigma=3.5)
     
     # from preprocessing import exponential_smoothing
@@ -197,13 +198,13 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     prediction = []
     for i in range(shape(sample)[1]):
 
-        clf = Ridge(alpha=1,fit_intercept=True)
+        clf = Ridge(alpha=1,fit_intercept=False)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
 
         X_test = reshape(list(range(len(sample)+skip_days,len(sample)+skip_days+predict_days)),(-1,1))
-        
+
         # X = hstack([X,square(X)])
         # X_test = hstack([X_test,square(X_test)])
 
@@ -214,19 +215,29 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
         # weights = [1 for _ in range(shape(X)[0])]
+        
+        # family = [lambda x:math.sin((3.14/3.5)*x+0),lambda x:math.sin((3.14/3.5)*x+1),lambda x:math.sin((3.14/3.5)*x+2),lambda x:math.sin((3.14/3.5)*x+3),lambda x:math.sin((3.14/3.5)*x+4),lambda x:math.sin((3.14/3.5)*x+5),lambda x:math.sin((3.14/3.5)*x+6)]
+        X_list = [X]
+        # for f in family:
+        #     X_list.append(apply(X,f))
+        X = hstack(X_list)
+        
+        X_test_list = [X_test]
+        # for f in family:
+        #     X_test_list.append(apply(X_test,f))
+        X_test = hstack(X_test_list)
+    
+        # def sigmoid_5_weights(X):
+        #     weights = []
+        #     length_X = shape(X)[0]
+        #     for i in range(length_X):
+        #         x = (i/5.0)
+        #         w = 1/(1+math.exp(-x))
+        #         weights.append(w)
+        #     return weights
+        # weights = sigmoid_5_weights(X)
 
-        def sigmoid_5_weights(X):
-            weights = []
-            length_X = shape(X)[0]
-            for i in range(length_X):
-                x = (i/5.0)
-                w = 1/(1+math.exp(-x))
-                weights.append(w)
-            return weights
-
-        weights = sigmoid_5_weights(X)
-
-        clf.fit(X,y,weights=weights)
+        clf.fit(X,y)
         p = clf.predict(X_test)
         # print(p)
 
