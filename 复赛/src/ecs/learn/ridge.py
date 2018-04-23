@@ -38,7 +38,7 @@ class Ridge:
         X_T = matrix_transpose(X)
         
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(
-            plus(matrix_matmul(X_T,X),multiply(eye,self.alpha*shape(X)[0]*2))
+            plus(matrix_matmul(X_T,X),multiply(eye,self.alpha*shape(X)[0]))
             # plus(matrix_matmul(X_T,X),multiply(eye,self.alpha))
         ),X_T),y)
         self.importance_ = sum(self.W,axis=1)
