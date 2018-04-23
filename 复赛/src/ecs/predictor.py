@@ -476,8 +476,8 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
         return result
 
     for i in range(machine_number):
-        # solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
-        solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
+        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
+        # solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=0.99)
         
         meta_solu.append(solu)
 
