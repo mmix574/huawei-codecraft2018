@@ -197,11 +197,10 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     prediction = []
     for i in range(shape(sample)[1]):
 
-        clf = Ridge(alpha=3,fit_intercept=False)
+        clf = Ridge(alpha=1,fit_intercept=True)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
-
 
         X_test = reshape(list(range(len(sample)+skip_days,len(sample)+skip_days+predict_days)),(-1,1))
         
@@ -214,9 +213,20 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
         # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
+        # weights = [1 for _ in range(shape(X)[0])]
 
-        
-        clf.fit(X,y)
+        def sigmoid_5_weights(X):
+            weights = []
+            length_X = shape(X)[0]
+            for i in range(length_X):
+                x = (i/5.0)
+                w = 1/(1+math.exp(-x))
+                weights.append(w)
+            return weights
+
+        weights = sigmoid_5_weights(X)
+
+        clf.fit(X,y,weights=weights)
         p = clf.predict(X_test)
         # print(p)
 

@@ -16,7 +16,7 @@ class Ridge:
         
         self.importance_ = None
         self.penalty_bias = penalty_bias
-    def fit(self,X,y):
+    def fit(self,X,y,weights=None):
         X,y = self._check(X,y)
         
         if self.fit_intercept:
@@ -28,6 +28,13 @@ class Ridge:
         from linalg.matrix import diag
         if not self.penalty_bias:
             eye[0][0] = 0
+        
+        # add weights
+        if weights!=None:
+            assert(len(weights)==shape(X)[0])
+            X = matrix_matmul(diag(weights),X)
+
+
         X_T = matrix_transpose(X)
         
         self.W = matrix_matmul(matrix_matmul(matrix_inverse(
