@@ -10,7 +10,7 @@ from linalg.matrix import hstack, stdev
 from linalg.vector import arange, argmax, argmin
 
 # change lucky random seed.
-# random.seed(77)
+random.seed(77)
 
 def parse_input_lines(input_lines):
     # strip each line
@@ -188,23 +188,22 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                         sample[i][j] = (mean_[j] + sample[i][j])/2.0
         return sample
 
-    # sample = outlier_handling(sample,method='dynamic',max_sigma=0)
-
-
-    sample = outlier_handling(sample,method='mean',max_sigma=3.5)
+    # sample = outlier_handling(sample,method='dynamic',max_sigma=3.5)
+    # sample = outlier_handling(sample,method='mean',max_sigma=3)
     
-    # from preprocessing import exponential_smoothing
-    # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2))
+    from preprocessing import exponential_smoothing
+    sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2),alpha=0.2)
 
     # rate = skip_days/float(predict_days) 
     prediction = []
     for i in range(shape(sample)[1]):
 
-        clf = Ridge(alpha=1,fit_intercept=False)
+        clf = Ridge(alpha=1,fit_intercept=True)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
-        
+        y = apply(y,lambda x:math.log(x))
+
         X_test = reshape(list(range(len(sample)+skip_days,len(sample)+skip_days+predict_days)),(-1,1))
         
         # X = hstack([X,square(X)])
@@ -213,12 +212,15 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
         # X = hstack([X,apply(X,lambda x:math.log1p(x))])
         # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x))])
 
-        # X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
-        # X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
+
+        -->
+        X = hstack([X,apply(X,lambda x:math.log1p(x)),sqrt(X)])
+        X_test = hstack([X_test,apply(X_test,lambda x:math.log1p(x)),sqrt(X_test)])
 
         
         clf.fit(X,y)
         p = clf.predict(X_test)
+        p = apply(p,lambda x:math.exp(x))
 
         print(clf.W)
         prediction.append(sum(flatten(p)))
@@ -231,9 +233,6 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
 
 
-def random_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
-    
-    pass
 
 def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=False):
     # parameters:
@@ -749,9 +748,6 @@ def score_estimate(machine_number,machine_name,machine_config,flavors_number,fla
 
 #     print(max_score)
 
-#     exit()
-    
-
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
@@ -774,7 +770,6 @@ def predict_vm(ecs_lines,input_lines):
     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
     
 
-    # maximize score
     max_score = None
     best_result = None
     min_count = None
@@ -805,6 +800,12 @@ def predict_vm(ecs_lines,input_lines):
             best_result = backpack_result
             min_count = backpack_count
     
+    backpack_count,backpack_result = random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=50)
+    if not max_score or max_score<score:
+        max_score = score
+        best_result = backpack_result
+        min_count = backpack_count
+
     
     print("max_score-->",max_score)
     backpack_count = min_count
