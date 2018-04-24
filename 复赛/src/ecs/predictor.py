@@ -449,13 +449,13 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
                 full = not still_can_fit(cpu,mem,flavors_config)
             solu = tuple(solu)
             score = estimate_partial_score(config,solu,flavors_unique,flavors_config)
-            if score>score_treadhold:
+            if score>score_treadhold and len(solu)!=0:
                 result.add(solu)
         
         return result
 
     for i in range(machine_number):
-        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=100,score_treadhold=score_treadhold)
+        solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
         # solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=1000,score_treadhold=score_treadhold)
         
         meta_solu.append(solu)
@@ -629,6 +629,17 @@ def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_conf
     return cpu_rate,mem_rate
 
 
+def dp(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
+    backpack_result = None
+    solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,score_treadhold=0.99,max_iter=10000)
+    # print(solutions)
+    print(prediction)
+
+    # if not possible -->random k times
+    # else for i in solutions,i and predictions merge
+
+    # return backpack_count,backpack_result
+
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
@@ -638,7 +649,12 @@ def predict_vm(ecs_lines,input_lines):
     machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,predict_start,predict_end = parse_input_lines(input_lines)
     ecs_logs,training_start,training_end = parse_ecs_lines(ecs_lines,flavors_unique)
     prediction = predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end)
+    
+    # testing 
     prediction  = [0, 24, 0, 0, 0, 210, 0, 0, 0, 0, 0, 18, 93, 45, 18, 0, 216, 0]
+    dp(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+    exit()
+
 
     max_score = None
     best_result = None
@@ -650,7 +666,7 @@ def predict_vm(ecs_lines,input_lines):
     
     percent = [0.99,0.98]
 
-    while (datetime.now()-start).seconds<70:
+    while (datetime.now()-start).seconds<50:
         # p = random.choice(percent)
         p = percent[i%len(percent)]  
         print(p)
@@ -670,7 +686,13 @@ def predict_vm(ecs_lines,input_lines):
             best_result = backpack_result
             min_count = backpack_count
     
-    backpack_count,backpack_result = random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=50)
+    backpack_count,backpack_result = random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=500)
+    cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
+    # find the best score solution 
+    score  = (cpu_rate+mem_rate)/2.0
+
+    print(score)
+    
     if not max_score or max_score<score:
         max_score = score
         best_result = backpack_result
