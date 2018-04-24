@@ -629,17 +629,52 @@ def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_conf
     return cpu_rate,mem_rate
 
 
-def dp(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction):
-    backpack_result = None
-    solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,score_treadhold=0.99,max_iter=10000)
-    # print(solutions)
-    print(prediction)
+# def dp(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,solutions):
+#     backpack_result = None
+#     print(prediction)
+#     def possible(prediction,solutions):
+#         for i in range(len(solutions)):
+#             solus = list(solutions[i])
+#             for j in range(len(solus)):
+#                 picker = list(solus[j])
+#                 if min(minus(prediction,picker))>=0:
+#                     return True
+#         return False
+#     if not possible(prediction,solutions):
+#         return random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=500)
+#     else:
 
-    # if not possible -->random k times
-    # else for i in solutions,i and predictions merge
+#         max_score = None
+#         best_i = None
+#         best_picker = None
+#         best_backpack_B = None
 
-    # return backpack_count,backpack_result
+#         for i in range(len(solutions)):
+#             solus = list(solutions[i])
+#             for j in range(len(solus)):
+#                 # print(i,j,prediction)
+#                 picker = list(solus[j])
+#                 if min(minus(prediction,picker))>=0:
+#                     backpack_count,backpack_result = dp(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,minus(prediction,picker),solutions)
+#                     cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
+#                     # find the best score solution 
+#                     score  = (cpu_rate+mem_rate)/2.0
+#                     # print(score)
 
+#                     if not max_score or max_score<score:
+#                         max_score = score
+#                         best_i = i
+#                         best_picker = picker
+#                         best_backpack_B = backpack_result
+#         em = {}.fromkeys(flavors_unique)
+#         for f in flavors_unique:
+#             em[f] = 0
+#         for i in range(len(picker)):
+#             em[flavors_unique[i]] = picker[i]
+#         best_backpack_B[best_i].append(em)
+#         backpack_count = [len(b) for b in best_backpack_B]
+
+#         return backpack_count,best_backpack_B
 
 # build output lines
 def predict_vm(ecs_lines,input_lines):
@@ -651,9 +686,11 @@ def predict_vm(ecs_lines,input_lines):
     prediction = predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end)
     
     # testing 
-    prediction  = [0, 24, 0, 0, 0, 210, 0, 0, 0, 0, 0, 18, 93, 45, 18, 0, 216, 0]
-    dp(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
-    exit()
+    # prediction  = [0, 24, 0, 0, 0, 210, 0, 0, 0, 0, 0, 18, 93, 45, 18, 0, 216, 0]
+    # dp(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,
+    # get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,score_treadhold=0.99,max_iter=100)
+    # )
+    # exit()
 
 
     max_score = None
