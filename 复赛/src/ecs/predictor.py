@@ -749,7 +749,7 @@ def predict_vm(ecs_lines,input_lines):
             max_score = score
             best_result = backpack_result
             min_count = backpack_count
-
+    
     start = datetime.now()
     while (datetime.now()-start).seconds<5:
         
@@ -768,6 +768,7 @@ def predict_vm(ecs_lines,input_lines):
             best_result = backpack_result
             min_count = backpack_count        
     
+    print("max_score-->",max_score)
 
 
     backpack_count,backpack_result = random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=500)
