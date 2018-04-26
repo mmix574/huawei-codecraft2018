@@ -2,16 +2,13 @@ import math
 import random
 import re
 from datetime import datetime, timedelta
-from random import shuffle
 
 from learn.ridge import Ridge
 from linalg.common import (abs, apply, dim, fancy, flatten, mean, minus,
-                           multiply, plus, reshape, shape, sqrt, square, sum,
-                           zeros)
+                           reshape, shape, sqrt, square, sum, zeros)
 from linalg.matrix import hstack, stdev
 from linalg.vector import arange, argmax, argmin
 
-# modify #1
 # change lucky random seed.
 random.seed(3)
 
@@ -171,6 +168,10 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     
     skip_days = (predict_start-training_end).days
 
+    # print(skip_days) #checked
+    # print(predict_days) #checked
+
+    # sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
     sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=1,strike=1,skip=0)
 
     def outlier_handling(sample,method='mean',max_sigma=3):
@@ -187,23 +188,22 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                             sample[i][j] = (mean_[j] + sample[i][j])/2.0
         return sample
 
-    # modify #2
-    # sample = outlier_handling(sample,method='mean',max_sigma=9)
-
-    # modify #3
+    # sample = outlier_handling(sample,method='dynamic',max_sigma=3)
+    # sample = outlier_handling(sample,method='mean',max_sigma=3.5)
+    
+    # from preprocessing import exponential_smoothing
+    # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2),alpha=0.2)
+    
+    skip_days -= 1
     prediction = []
     for i in range(shape(sample)[1]):
-        # modify #4 --
-        clf = Ridge(alpha=1,fit_intercept=False)
+
+        clf = Ridge(alpha=1,fit_intercept=True)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
-        
 
-        # selected #1 xjb
-        X_test = reshape(list(range(len(sample),len(sample)+skip_days+predict_days-1)),(-1,1))
-        # selected #2 normal
-        # X_test = reshape(list(range(len(sample)+skip_days,len(sample)+skip_days+predict_days)),(-1,1))
+        X_test = reshape(list(range(len(sample),len(sample)+skip_days+predict_days)),(-1,1))
 
         X_list = [X]
         X = hstack(X_list)
@@ -213,6 +213,7 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
         clf.fit(X,y)
         p = clf.predict(X_test)
+
 
         prediction.append(sum(flatten(p)))
 
@@ -332,10 +333,14 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
 
                 vms.pop(0)
                 
+                # add @2018-04-18
+                # select next type of entity machine
+                # type_i = random.choice(range(machine_number))
+
                 if mem_predict==0:
                     break
-                else:
-                    type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_predict))))
+                # 1.Greedy Select
+                type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_predict))))
 
 
     for i in range(len(placing)):
@@ -355,6 +360,7 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 best_i = argmax(scores)
                 backpack_result[best_i].append(placing[i])
                 
+                # backpack_result[i].append(placing[i])
 
     backpack_count = [len(b) for b in backpack_result]
 
@@ -397,6 +403,7 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
         for i in range(max_iter):
             cpu = config['CPU']
             mem = config['MEM']
+            from random import shuffle
             shuffle(vms)
             
             # [f1,f3,f5,f8,f9] <--flavor unique
@@ -422,6 +429,7 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
 
     def generate_single_expert_based(config,flavors_unique,flavors_config,vms,max_iter=1000,score_treadhold=0.99):
         result = set()
+
         for _ in range(max_iter):
             cpu = config['CPU']
             mem = config['MEM']
@@ -451,12 +459,52 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
     for i in range(machine_number):
         solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
         # solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=1000,score_treadhold=score_treadhold)
+        
         meta_solu.append(solu)
+
     return meta_solu
 
 
 # warpper function for 
 def random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=50):
+    def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
+        def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
+            cpu = 0
+            mem = 0
+            for k,v in em.items():
+                cpu += flavors_config[flavors_unique.index(k)]['CPU']*v
+                mem += flavors_config[flavors_unique.index(k)]['MEM']*v
+            return cpu,mem
+        
+        cpu_total_total = 0
+        mem_total_total = 0
+        cpu_used_total_total = 0
+        mem_used_total_total = 0
+        
+        for i in range(machine_number):
+            cpu_total = len(backpack_result[i])*machine_config[i]['CPU']
+            mem_total = len(backpack_result[i])*machine_config[i]['MEM']
+            cpu_total_total += cpu_total
+            mem_total_total += mem_total
+
+            # state:[(cpu,mem),(cpu,mem)...]
+            # [(81, 155), (82, 159), (84, 157), (81, 153)]
+            state = [_get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em) for em in backpack_result[i]]
+            cpu_used_total = sum([s[0] for s in state])
+            mem_used_total = sum([s[1] for s in state])
+
+            cpu_used_total_total += cpu_used_total
+            mem_used_total_total += mem_used_total
+
+            # print(cpu_used_total,cpu_total_total)
+            # print(mem_used_total,mem_total_total)
+
+        cpu_rate = cpu_used_total_total/float(cpu_total_total)
+        mem_rate = mem_used_total_total/float(mem_total_total)
+        return cpu_rate,mem_rate
+    # end get_backpack_score function
+
+
     # maximize score
     max_score = None
     best_result = None
@@ -473,6 +521,7 @@ def random_k_times(machine_number,machine_name,machine_config,flavors_number,fla
             best_result = backpack_result
             min_count = backpack_count
     # print("max_score-->",max_score)
+
     return min_count,best_result
 
 
@@ -480,6 +529,9 @@ def greedy_99_backpack(machine_number,machine_name,machine_config,flavors_number
     backpack_result = None
     solutions = get_approximate_meta_solutions(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,score_treadhold=score_treadhold)
 
+    # print(prediction)
+    # print(solutions)
+    
     def possible(prediction,picker):
         for i in range(len(prediction)):
             if picker[i]>prediction[i]:
@@ -503,7 +555,9 @@ def greedy_99_backpack(machine_number,machine_name,machine_config,flavors_number
                     backpack_result[i].append(em)
                     fit = True
 
+    # _,backpack_result_2 = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
     _,backpack_result_2 = random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=1000)
+
 
     # backpack merge
     for i in range(len(backpack_result)):
@@ -531,6 +585,7 @@ def greedy_general_backpack(machine_number,machine_name,machine_config,flavors_n
             for _ in range(prediction[i])]
             )
     from random import shuffle
+
 
 
     def try_backpack(config,flavors_unique,vms):
@@ -650,7 +705,7 @@ def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_conf
     cpu_rate = cpu_used_total_total/float(cpu_total_total)
     mem_rate = mem_used_total_total/float(mem_total_total)
     return cpu_rate,mem_rate
-# ----------------------------------------------------------------#
+
 
 
 # build output lines
@@ -661,7 +716,6 @@ def predict_vm(ecs_lines,input_lines):
     machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,predict_start,predict_end = parse_input_lines(input_lines)
     ecs_logs,training_start,training_end = parse_ecs_lines(ecs_lines,flavors_unique)
     prediction = predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end)
-
 
     max_score = None
     best_result = None
@@ -674,23 +728,39 @@ def predict_vm(ecs_lines,input_lines):
     percent = [0.99,0.98]
 
     while (datetime.now()-start).seconds<45:
+        # p = random.choice(percent)
         p = percent[i%len(percent)]
+
+        # print(p)
+        # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
         backpack_count,backpack_result = greedy_99_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,score_treadhold=p)
+        
+        # backpack_count,backpack_result = greedy_general_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+
         cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
+
+        # find the best score solution 
         score  = (cpu_rate+mem_rate)/2.0
+        
+        # print(i,score)
         i+=1
+
         if not max_score or max_score<score:
             max_score = score
             best_result = backpack_result
             min_count = backpack_count
-    print("max_score-->",max_score)
-    
+
     start = datetime.now()
     while (datetime.now()-start).seconds<5:
+        
         backpack_count,backpack_result = greedy_general_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
+
         cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
 
+        # find the best score solution 
         score  = (cpu_rate+mem_rate)/2.0
+        
+        # print(i,score)
         i+=1
 
         if not max_score or max_score<score:
@@ -698,12 +768,13 @@ def predict_vm(ecs_lines,input_lines):
             best_result = backpack_result
             min_count = backpack_count        
     
-    print("max_score-->",max_score)
 
-    # modify 5 - k times
+
     backpack_count,backpack_result = random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=500)
     cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
+    # find the best score solution 
     score  = (cpu_rate+mem_rate)/2.0
+    # print(score)
     
     if not max_score or max_score<score:
         max_score = score
