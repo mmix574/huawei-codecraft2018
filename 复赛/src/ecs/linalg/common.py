@@ -442,3 +442,9 @@ def apply(A,f):
         return A
     else:
         return f(A)
+
+def cumsum(A):
+    assert(dim(A)==2)
+    for i in range(1,shape(A)[0]):
+        A[i] = plus(A[i],A[i-1]) 
+    return A

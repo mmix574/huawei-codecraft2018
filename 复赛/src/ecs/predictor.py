@@ -5,10 +5,13 @@ from datetime import datetime, timedelta
 
 from learn.ridge import Ridge
 from linalg.common import (abs, apply, dim, fancy, flatten, mean, minus,
-                           reshape, shape, sqrt, square, sum, zeros)
+                           multiply, plus, reshape, shape, sqrt, square, sum,
+                           zeros)
 from linalg.matrix import hstack, stdev
 from linalg.vector import arange, argmax, argmin
 
+
+# modify #1
 # change lucky random seed.
 random.seed(3)
 
@@ -168,10 +171,6 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
     
     skip_days = (predict_start-training_end).days
 
-    # print(skip_days) #checked
-    # print(predict_days) #checked
-
-    # sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=predict_days,strike=predict_days,skip=0)
     sample = resampling(ecs_logs,flavors_unique,training_start,training_end,frequency=1,strike=1,skip=0)
 
     def outlier_handling(sample,method='mean',max_sigma=3):
@@ -188,22 +187,23 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
                             sample[i][j] = (mean_[j] + sample[i][j])/2.0
         return sample
 
-    # sample = outlier_handling(sample,method='dynamic',max_sigma=3)
-    # sample = outlier_handling(sample,method='mean',max_sigma=3.5)
-    
-    # from preprocessing import exponential_smoothing
-    # sample = exponential_smoothing(exponential_smoothing(sample,alpha=0.2),alpha=0.2)
-    
-    skip_days -= 1
+    # modify #2
+    sample = outlier_handling(sample,method='mean',max_sigma=9)
+
+    # modify #3
     prediction = []
     for i in range(shape(sample)[1]):
-
-        clf = Ridge(alpha=1,fit_intercept=True)
+        # modify #4 --
+        clf = Ridge(alpha=1,fit_intercept=False)
 
         X = reshape(list(range(len(sample))),(-1,1))
         y = fancy(sample,None,(i,i+1))
+        
 
-        X_test = reshape(list(range(len(sample),len(sample)+skip_days+predict_days)),(-1,1))
+        # selected #1
+        X_test = reshape(list(range(len(sample),len(sample)+skip_days+predict_days-1)),(-1,1))
+        # 
+        # X_test = reshape(list(range(len(sample)+skip_days,len(sample)+skip_days+predict_days)),(-1,1))
 
         X_list = [X]
         X = hstack(X_list)
@@ -213,7 +213,6 @@ def predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,traini
 
         clf.fit(X,y)
         p = clf.predict(X_test)
-
 
         prediction.append(sum(flatten(p)))
 
@@ -333,14 +332,10 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
 
                 vms.pop(0)
                 
-                # add @2018-04-18
-                # select next type of entity machine
-                # type_i = random.choice(range(machine_number))
-
                 if mem_predict==0:
                     break
-                # 1.Greedy Select
-                type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_predict))))
+                else:
+                    type_i = argmin(abs(minus(machine_rate,cpu_predict/float(mem_predict))))
 
 
     for i in range(len(placing)):
@@ -360,7 +355,6 @@ def backpack(machine_number,machine_name,machine_config,flavors_number,flavors_u
                 best_i = argmax(scores)
                 backpack_result[best_i].append(placing[i])
                 
-                # backpack_result[i].append(placing[i])
 
     backpack_count = [len(b) for b in backpack_result]
 
@@ -459,52 +453,12 @@ def get_approximate_meta_solutions(machine_number,machine_name,machine_config,fl
     for i in range(machine_number):
         solu = generate_single_prediction_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=max_iter,score_treadhold=score_treadhold)
         # solu = generate_single_expert_based(machine_config[i],flavors_unique,flavors_config,vms,max_iter=1000,score_treadhold=score_treadhold)
-        
         meta_solu.append(solu)
-
     return meta_solu
 
 
 # warpper function for 
 def random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=50):
-    def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result):
-        def _get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em):
-            cpu = 0
-            mem = 0
-            for k,v in em.items():
-                cpu += flavors_config[flavors_unique.index(k)]['CPU']*v
-                mem += flavors_config[flavors_unique.index(k)]['MEM']*v
-            return cpu,mem
-        
-        cpu_total_total = 0
-        mem_total_total = 0
-        cpu_used_total_total = 0
-        mem_used_total_total = 0
-        
-        for i in range(machine_number):
-            cpu_total = len(backpack_result[i])*machine_config[i]['CPU']
-            mem_total = len(backpack_result[i])*machine_config[i]['MEM']
-            cpu_total_total += cpu_total
-            mem_total_total += mem_total
-
-            # state:[(cpu,mem),(cpu,mem)...]
-            # [(81, 155), (82, 159), (84, 157), (81, 153)]
-            state = [_get_em_weights_of_cpu_and_mem(flavors_unique,flavors_config,em) for em in backpack_result[i]]
-            cpu_used_total = sum([s[0] for s in state])
-            mem_used_total = sum([s[1] for s in state])
-
-            cpu_used_total_total += cpu_used_total
-            mem_used_total_total += mem_used_total
-
-            # print(cpu_used_total,cpu_total_total)
-            # print(mem_used_total,mem_total_total)
-
-        cpu_rate = cpu_used_total_total/float(cpu_total_total)
-        mem_rate = mem_used_total_total/float(mem_total_total)
-        return cpu_rate,mem_rate
-    # end get_backpack_score function
-
-
     # maximize score
     max_score = None
     best_result = None
@@ -521,7 +475,6 @@ def random_k_times(machine_number,machine_name,machine_config,flavors_number,fla
             best_result = backpack_result
             min_count = backpack_count
     # print("max_score-->",max_score)
-
     return min_count,best_result
 
 
@@ -708,15 +661,8 @@ def get_backpack_score(machine_number,machine_config,flavors_unique,flavors_conf
 
 
 
-
-
 # build output lines
 def predict_vm(ecs_lines,input_lines):
-    #--------------- testing -----------------------
-    test(ecs_lines,input_lines)
-    exit()
-    #---------------end testing --------------------
-
     if input_lines is None or ecs_lines is None:
         return []
 
@@ -822,85 +768,3 @@ def predict_vm(ecs_lines,input_lines):
                 c += 1
 
     return result
-
-
-def test(ecs_lines,input_lines):
-    if input_lines is None or ecs_lines is None:
-        return []
-
-    machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,predict_start,predict_end = parse_input_lines(input_lines)
-    ecs_logs,training_start,training_end = parse_ecs_lines(ecs_lines,flavors_unique)
-    prediction = predict_flavors(ecs_logs,flavors_config,flavors_unique,training_start,training_end,predict_start,predict_end)
-
-    predictions = [[0, 0, 0, 255, 0, 213, 0, 0, 248, 0, 0, 232, 76, 281, 210, 0, 235, 93],[0, 181, 0, 142, 0, 0, 99, 0, 0, 0, 48, 53, 198, 0, 0, 216, 130, 0],[0, 209, 105, 236, 0, 33, 0, 128, 11, 279, 73, 0, 0, 0, 202, 0, 0, 0],[0, 240, 0, 0, 182, 0, 208, 0, 10, 80, 52, 259, 89, 0, 0, 0, 171, 0],[0, 0, 0, 0, 0, 0, 0, 115, 179, 144, 0, 0, 0, 0, 26, 194, 0, 23],[0, 6, 0, 0, 0, 3, 0, 0, 0, 0, 0, 290, 173, 0, 0, 0, 258, 0],[96, 109, 0, 11, 0, 0, 169, 149, 0, 0, 0, 240, 86, 0, 0, 0, 0, 0],[0, 239, 0, 100, 298, 0, 0, 67, 140, 0, 23, 0, 240, 6, 139, 25, 0, 0],[163, 0, 0, 250, 0, 137, 14, 0, 81, 71, 0, 0, 50, 0, 0, 261, 0, 234],[0, 0, 0, 105, 0, 0, 0, 270, 0, 152, 264, 0, 120, 0, 50, 0, 270, 188],[0, 0, 37, 0, 0, 103, 0, 40, 190, 20, 207, 106, 0, 0, 178, 0, 89, 0],[0, 0, 0, 172, 164, 0, 0, 0, 9, 29, 95, 0, 0, 23, 284, 126, 0, 0],[239, 193, 68, 0, 0, 0, 0, 250, 217, 0, 206, 102, 81, 45, 55, 0, 0, 0],[0, 0, 0, 9, 38, 114, 238, 35, 0, 188, 0, 0, 0, 0, 0, 0, 0, 0],[0, 100, 110, 295, 248, 0, 0, 0, 138, 235, 252, 145, 0, 0, 0, 252, 233, 0],[0, 235, 0, 10, 5, 0, 0, 278, 177, 210, 251, 132, 224, 202, 0, 0, 0, 0],[0, 270, 0, 0, 0, 94, 0, 269, 0, 0, 92, 0, 0, 0, 0, 0, 123, 0],[0, 36, 0, 0, 0, 0, 110, 283, 104, 0, 5, 26, 0, 81, 0, 118, 0, 0],[0, 190, 66, 290, 0, 0, 25, 80, 37, 276, 10, 179, 44, 0, 0, 0, 259, 0],[77, 0, 0, 0, 124, 168, 15, 0, 142, 0, 0, 209, 0, 0, 160, 60, 192, 0],[43, 0, 287, 23, 0, 0, 95, 0, 0, 0, 0, 20, 110, 0, 0, 0, 0, 0],[54, 40, 0, 54, 0, 290, 0, 27, 0, 197, 0, 29, 0, 6, 0, 300, 45, 88],[0, 0, 0, 0, 249, 67, 0, 0, 207, 0, 169, 77, 0, 0, 0, 0, 115, 290],[0, 24, 0, 0, 0, 210, 0, 0, 0, 0, 0, 18, 93, 45, 18, 0, 216, 0],[208, 116, 0, 0, 0, 174, 220, 30, 9, 236, 104, 233, 0, 0, 0, 0, 285, 172],[0, 0, 293, 0, 0, 65, 42, 0, 45, 0, 141, 0, 163, 0, 0, 292, 0, 122],[169, 0, 0, 0, 0, 295, 228, 200, 137, 0, 0, 0, 0, 53, 22, 208, 123, 80],[0, 0, 78, 183, 147, 0, 291, 0, 0, 257, 96, 11, 36, 224, 0, 58, 77, 93],[284, 268, 12, 0, 60, 0, 127, 0, 178, 0, 0, 0, 0, 0, 0, 0, 0, 81],[0, 40, 0, 277, 0, 0, 0, 0, 0, 0, 51, 89, 138, 0, 125, 162, 219, 0],[226, 0, 0, 0, 176, 0, 42, 0, 20, 50, 189, 192, 31, 0, 210, 0, 141, 0],[179, 147, 92, 26, 0, 158, 57, 0, 232, 254, 0, 0, 278, 0, 0, 0, 230, 0],[0, 0, 262, 248, 0, 0, 159, 77, 0, 148, 47, 223, 0, 0, 209, 0, 12, 253],[0, 0, 0, 0, 230, 58, 0, 172, 0, 0, 0, 0, 0, 24, 0, 99, 0, 0],[294, 0, 61, 222, 0, 274, 0, 135, 10, 0, 287, 0, 0, 188, 0, 58, 103, 52],[0, 0, 0, 0, 53, 257, 0, 161, 43, 173, 230, 268, 0, 0, 179, 297, 23, 153],[0, 0, 0, 229, 0, 0, 26, 24, 0, 290, 0, 300, 0, 2, 94, 76, 163, 221],[0, 289, 166, 191, 179, 217, 121, 284, 0, 0, 249, 0, 0, 144, 0, 144, 245, 101],[0, 111, 0, 0, 0, 11, 0, 46, 0, 0, 188, 29, 47, 0, 0, 0, 57, 157],[0, 0, 257, 160, 0, 0, 227, 297, 77, 0, 0, 0, 52, 250, 0, 0, 0, 92],[0, 0, 0, 0, 105, 0, 0, 190, 139, 0, 0, 253, 0, 168, 65, 0, 0, 0],[50, 0, 205, 0, 0, 223, 129, 0, 0, 0, 0, 135, 0, 246, 143, 82, 165, 290],[0, 0, 0, 228, 293, 212, 66, 267, 0, 79, 0, 296, 22, 114, 287, 0, 0, 18],[278, 232, 90, 0, 0, 72, 273, 135, 126, 0, 0, 0, 115, 183, 147, 43, 79, 0],[110, 70, 57, 210, 97, 0, 102, 0, 163, 3, 275, 253, 10, 0, 0, 36, 168, 0],[0, 0, 0, 156, 102, 0, 0, 0, 0, 295, 212, 83, 43, 0, 0, 225, 0, 0],[0, 0, 211, 0, 0, 0, 15, 32, 0, 0, 224, 0, 128, 217, 0, 0, 105, 277],[0, 0, 0, 0, 11, 5, 0, 171, 292, 140, 0, 0, 181, 0, 0, 0, 0, 0],[0, 0, 0, 52, 0, 0, 88, 0, 57, 0, 199, 93, 118, 283, 0, 203, 62, 22],[0, 55, 0, 0, 0, 0, 0, 0, 29, 0, 0, 0, 0, 183, 0, 25, 0, 0],[0, 0, 258, 167, 0, 266, 0, 156, 0, 0, 168, 0, 52, 91, 123, 0, 0, 120],[0, 249, 0, 118, 6, 7, 17, 64, 295, 0, 123, 0, 0, 0, 296, 236, 0, 207],[87, 0, 276, 0, 175, 0, 225, 0, 0, 0, 191, 207, 154, 0, 0, 297, 182, 292],[58, 290, 65, 202, 63, 0, 0, 0, 135, 0, 39, 0, 42, 0, 0, 0, 39, 20],[0, 0, 79, 0, 0, 207, 283, 0, 137, 0, 0, 78, 269, 0, 165, 163, 290, 0],[0, 290, 115, 210, 0, 0, 45, 263, 0, 44, 0, 0, 0, 286, 186, 0, 0, 190],[88, 212, 0, 0, 176, 209, 0, 0, 14, 0, 45, 131, 0, 0, 0, 0, 0, 11],[257, 25, 0, 0, 0, 43, 0, 106, 186, 0, 265, 30, 0, 0, 0, 0, 113, 0],[295, 0, 0, 0, 0, 0, 0, 142, 212, 95, 49, 0, 0, 0, 0, 157, 0, 224],[0, 251, 0, 0, 181, 0, 0, 199, 85, 0, 0, 0, 0, 0, 185, 105, 192, 97],[269, 146, 0, 0, 0, 0, 0, 7, 0, 250, 0, 0, 71, 0, 0, 168, 257, 265],[148, 0, 227, 0, 124, 0, 155, 0, 0, 0, 221, 227, 0, 155, 0, 246, 241, 47],[0, 135, 169, 0, 27, 271, 8, 0, 45, 120, 0, 42, 0, 0, 0, 65, 0, 0],[38, 0, 0, 242, 127, 23, 0, 0, 200, 214, 0, 88, 277, 50, 0, 166, 100, 257],[61, 288, 253, 5, 0, 1, 0, 0, 133, 46, 0, 199, 0, 0, 284, 126, 285, 203],[134, 0, 27, 152, 0, 0, 0, 0, 162, 137, 0, 0, 241, 0, 272, 203, 12, 0],[0, 0, 0, 0, 0, 153, 0, 0, 0, 0, 0, 239, 0, 0, 204, 264, 0, 38],[0, 102, 98, 194, 0, 108, 0, 273, 0, 0, 74, 0, 0, 0, 112, 0, 0, 0],[0, 0, 102, 0, 200, 179, 0, 54, 0, 0, 0, 44, 182, 300, 0, 0, 196, 134],[0, 0, 0, 0, 0, 0, 285, 0, 157, 0, 162, 227, 0, 0, 203, 0, 0, 66],[118, 33, 200, 65, 12, 0, 0, 300, 165, 0, 219, 0, 209, 0, 250, 0, 0, 0],[0, 178, 0, 40, 34, 71, 60, 235, 0, 0, 43, 0, 120, 299, 55, 0, 0, 0],[0, 131, 0, 0, 287, 0, 287, 0, 127, 222, 0, 23, 0, 0, 63, 157, 180, 0],[0, 290, 266, 112, 186, 152, 0, 0, 0, 0, 0, 7, 0, 0, 55, 35, 135, 241],[0, 35, 214, 0, 0, 0, 136, 0, 0, 0, 0, 0, 0, 0, 244, 97, 102, 191],[0, 183, 0, 144, 0, 0, 33, 0, 270, 67, 175, 0, 0, 169, 0, 42, 121, 0],[0, 129, 0, 243, 12, 292, 0, 262, 0, 0, 16, 276, 0, 220, 190, 0, 0, 175],[0, 0, 278, 0, 0, 0, 45, 239, 273, 0, 165, 0, 4, 0, 0, 0, 66, 0],[24, 0, 0, 0, 0, 121, 218, 0, 183, 0, 72, 183, 0, 79, 0, 0, 0, 298],[232, 27, 0, 14, 9, 0, 6, 245, 0, 26, 0, 0, 209, 0, 0, 0, 0, 263],[89, 0, 152, 0, 96, 0, 275, 88, 200, 97, 147, 16, 15, 128, 292, 0, 107, 240],[0, 154, 0, 135, 0, 0, 282, 0, 0, 0, 0, 0, 0, 0, 231, 0, 0, 0],[0, 242, 281, 290, 116, 231, 106, 0, 0, 0, 247, 0, 0, 0, 0, 0, 0, 189],[169, 243, 0, 128, 194, 66, 0, 82, 0, 99, 0, 294, 0, 0, 96, 101, 181, 144],[0, 0, 126, 0, 37, 32, 16, 14, 151, 255, 132, 0, 24, 0, 105, 0, 0, 0],[0, 274, 0, 0, 51, 90, 293, 241, 0, 0, 0, 175, 200, 0, 290, 135, 0, 0],[143, 0, 299, 0, 0, 285, 0, 154, 136, 0, 0, 271, 166, 0, 235, 228, 0, 26],[0, 138, 57, 0, 0, 0, 216, 227, 0, 0, 9, 218, 0, 278, 201, 267, 74, 0],[0, 0, 279, 145, 15, 279, 0, 0, 148, 0, 91, 0, 0, 0, 0, 0, 155, 9],[0, 0, 104, 0, 0, 0, 0, 0, 167, 0, 133, 127, 105, 195, 110, 138, 56, 10],[131, 0, 0, 0, 0, 125, 0, 0, 163, 11, 0, 0, 0, 0, 0, 0, 258, 165],[0, 0, 184, 294, 0, 209, 0, 146, 0, 0, 0, 82, 273, 0, 88, 94, 0, 0],[14, 115, 137, 111, 225, 0, 0, 0, 152, 298, 0, 149, 113, 15, 0, 296, 165, 0],[9, 0, 0, 247, 187, 0, 0, 0, 0, 64, 66, 0, 156, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 214, 86, 0, 0, 69, 0, 0, 0, 294, 0, 161, 132, 241],[0, 227, 225, 216, 90, 0, 0, 0, 0, 0, 0, 0, 139, 51, 0, 164, 170, 0],[0, 244, 0, 0, 0, 0, 84, 78, 0, 0, 295, 0, 164, 0, 75, 0, 68, 11],[209, 0, 136, 252, 131, 19, 0, 296, 131, 213, 178, 259, 98, 0, 0, 6, 184, 118],[99, 271, 172, 0, 0, 0, 0, 119, 0, 109, 271, 0, 12, 0, 0, 255, 1, 51],[0, 260, 0, 0, 0, 22, 0, 0, 97, 0, 0, 211, 119, 63, 0, 206, 0, 150]]
-
-    for prediction in predictions:
-        max_score = None
-        best_result = None
-        min_count = None
-        
-
-        # start = datetime.now()
-        i = 0
-        
-        # percent = [0.99,0.98]
-
-        # while (datetime.now()-start).seconds<45:
-        #     # p = random.choice(percent)
-        #     p = percent[i%len(percent)]
-
-        #     # print(p)
-        #     # backpack_count,backpack_result = backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,is_random=True)
-        #     backpack_count,backpack_result = greedy_99_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,score_treadhold=p)
-            
-        #     # backpack_count,backpack_result = greedy_general_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
-
-        #     cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
-
-        #     # find the best score solution 
-        #     score  = (cpu_rate+mem_rate)/2.0
-            
-        #     # print(i,score)
-        #     i+=1
-
-        #     if not max_score or max_score<score:
-        #         max_score = score
-        #         best_result = backpack_result
-        #         min_count = backpack_count
-
-
-
-
-
-
-        # start = datetime.now()
-        # while (datetime.now()-start).seconds<5:
-            
-        #     backpack_count,backpack_result = greedy_general_backpack(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction)
-
-        #     cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
-
-        #     # find the best score solution 
-        #     score  = (cpu_rate+mem_rate)/2.0
-            
-        #     # print(i,score)
-        #     i+=1
-
-        #     if not max_score or max_score<score:
-        #         max_score = score
-        #         best_result = backpack_result
-        #         min_count = backpack_count        
-        
-        # print(max_score)
-
-
-
-
-
-
-        backpack_count,backpack_result = random_k_times(machine_number,machine_name,machine_config,flavors_number,flavors_unique,flavors_config,prediction,k=500)
-        cpu_rate,mem_rate = get_backpack_score(machine_number,machine_config,flavors_unique,flavors_config,backpack_result)
-        # find the best score solution 
-        score  = (cpu_rate+mem_rate)/2.0
-        print(score)
-    
